@@ -8,7 +8,17 @@
 #include <sys/types.h>
 
 #include "functions.c"
+
+
+
+
 int run_config(int argc, char **argv);
+
+int run_init(int argc, char **argv);
+
+int check_init();
+
+void create_essentials();
 
 
 #ifndef BP_PROJECT_FUNCTIONS_H

@@ -7,7 +7,18 @@ int main(int argc, char **argv) {
     } else if (strcmp(argv[1], "config") == 0) {
         if (argc > 2) {
             run_config(argc, argv);
-            printf("done\n");
+        } else {
+            printf("Invalid Command!\n");
+        }
+    } else if (strcmp(argv[1], "init") == 0) {
+        if (argc == 2) {
+            run_init(argc, argv);
+        } else {
+            printf("Invalid Command!\n");
+        }
+    } else if (strcmp(argv[1], "add") == 0) {
+        if (argc > 2) {
+            run_init(argc, argv);
         } else {
             printf("Invalid Command!\n");
         }
