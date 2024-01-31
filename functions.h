@@ -20,6 +20,13 @@ int check_init();
 
 void create_essentials();
 
+int run_add(int argc, char **argv);
+
+int directory_search(DIR* current, char name[]);
+
+int is_identical(char address1[], char address2[]);
+
+int check_add();
 
 #ifndef BP_PROJECT_FUNCTIONS_H
 #define BP_PROJECT_FUNCTIONS_H

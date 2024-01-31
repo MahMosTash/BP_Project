@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
         }
     } else if (strcmp(argv[1], "add") == 0) {
         if (argc > 2) {
-            run_init(argc, argv);
+            run_add(argc, argv);
         } else {
             printf("Invalid Command!\n");
         }

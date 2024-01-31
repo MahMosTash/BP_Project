@@ -1,5 +1,6 @@
 #define GlobalName "/home/mahmostash/Desktop/BP_Project/user/globalname.txt"
 #define GlobalEmail "/home/mahmostash/Desktop/BP_Project/user/globalemail.txt"
+#define Staging ".dambiz/staging"
 #define MAX_FILE_SIZE 5000
 #define MAX_NAME_SIZE 100
 
@@ -68,7 +69,6 @@ int check_init() {
         }
         while ((insearch = readdir(current_directory)) != NULL) {
             if ((strcmp(insearch->d_name, ".dambiz") == 0) && (insearch->d_type == DT_DIR)) {
-                perror("Could not initialize .dambiz because it is already created in the current directory or its parents'");
                 return 2;
             }
         }
@@ -88,15 +88,15 @@ int check_init() {
 }
 
 
-void create_essentials(){
-    if (mkdir(".dambiz/user", 0755) || mkdir(".dambiz/alias", 0755) || mkdir(".dambiz/commits", 0755) || mkdir(".dambiz/staging", 0755) || mkdir(".dambiz/tracks", 0755)){
+void create_essentials() {
+    if (mkdir(".dambiz/user", 0755) || mkdir(".dambiz/alias", 0755) || mkdir(".dambiz/commits", 0755) ||
+        mkdir(".dambiz/staging", 0755) || mkdir(".dambiz/tracks", 0755)) {
         perror("Oops! Something bad happened!");
     }
-    if (fopen(".dambiz/user/localemail.txt", "w") == NULL || fopen(".dambiz/user/localname.txt", "w") == NULL){
+    if (fopen(".dambiz/user/localemail.txt", "w") == NULL || fopen(".dambiz/user/localname.txt", "w") == NULL) {
         perror("Oops! Something bad happened!");
     }
 }
-
 
 
 int run_init(int argc, char **argv) {
@@ -114,5 +114,115 @@ int run_init(int argc, char **argv) {
             create_essentials();
             perror("Dambiz is initialized successfully!");
         }
+    } else if (check_init() == 2) {
+        perror("Could not initialize .dambiz because it is already created in the current directory or its parents'");
+    }
+}
+
+int directory_search(DIR* current, char name[]){
+    struct dirent* insearch;
+    while ((insearch = readdir(current)) != NULL){
+        if((strcmp(insearch->d_name, name) == 0)){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+
+int is_identical(char address1[], char address2[]){
+    FILE *f1 = fopen(address1, "rb");
+    FILE *f2 = fopen(address2, "rb");
+    char bf1, bf2;
+    while (1){
+        fread(&bf1, 1, 1, f1) != 0;
+        fread(&bf2, 1, 1, f2) != 0;
+
+        if (bf1 != bf2){
+            return 0;
+        }
+        if ((feof(f1) && !feof(f2)) || (!feof(f1) && feof(f2))){
+            return 0;
+        }
+        if (feof(f1) && feof(f2)){
+            break;
+        }
+
+    }
+    return 1;
+}
+
+
+int check_add(char add_address[], char stage_address[]){
+    DIR *adding;
+    DIR *staging;
+    struct dirent* ToAdd;
+    if ((adding = opendir(".")) == NULL) {
+        perror("Something happened!");
+        return 1;
+    }
+    if ((staging = opendir(Staging)) == NULL){
+        perror("couldn't open the staging folder");
+        return 1;
+    }
+    while ((ToAdd = readdir(adding)) != NULL){
+        if((strcmp(ToAdd->d_name, add_address) == 0) && ToAdd->d_type != DT_DIR){
+            if (directory_search(staging, add_address)){
+                if(is_identical(add_address, stage_address)) {
+                    perror("Can't add because files have not changed");
+                    return 1;
+                }
+            }
+        } else if((strcmp(ToAdd->d_name, add_address) == 0) && ToAdd->d_type == DT_DIR){
+            if ((strcmp(ToAdd->d_name, ".") == 0) && (strcmp(ToAdd->d_name, "..") == 0)){
+                perror("1");
+            } else{
+                perror("2");
+            }
+        }
+    }
+}
+
+
+int run_add(int argc, char **argv) {
+    if (check_init() == 0) {
+        perror("You have not initialized in this folder or its parents yet.");
+    }
+    if (argc == 3) {
+        char add_address[MAX_FILE_SIZE];
+        char stage_address[MAX_FILE_SIZE] = ".dambiz/staging/";
+        strcpy(add_address, argv[2]);
+        strcat(stage_address, add_address);
+        DIR *adding;
+        DIR *staging;
+        struct dirent* ToAdd;
+        if ((adding = opendir(".")) == NULL) {
+            perror("Something happened!");
+            return 1;
+        }
+        if ((staging = opendir(Staging)) == NULL){
+            perror("couldn't open the staging folder");
+            return 1;
+        }
+        while ((ToAdd = readdir(adding)) != NULL){
+            if((strcmp(ToAdd->d_name, add_address) == 0) && ToAdd->d_type != DT_DIR){
+                if (directory_search(staging, add_address)){
+                    if(is_identical(add_address, stage_address)) {
+                        perror("Can't add because files have not changed");
+                        return 1;
+                    }
+                }
+            } else if((strcmp(ToAdd->d_name, add_address) == 0) && ToAdd->d_type == DT_DIR){
+                if ((strcmp(ToAdd->d_name, ".") == 0) && (strcmp(ToAdd->d_name, "..") == 0)){
+                    perror("1");
+                } else{
+                    perror("2");
+                }
+            }
+        }
+        char command[1000];
+        sprintf(command, "rsync -r %s .dambiz/staging", add_address);
+        system(command);
+        perror("added successfully!");
     }
 }
