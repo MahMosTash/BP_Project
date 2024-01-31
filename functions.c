@@ -194,6 +194,7 @@ int check_addfolder(char folderaddress[], char stageaddress[]) {
 int run_add(int argc, char **argv) {
     if (check_init() == 0) {
         perror("You have not initialized in this folder or its parents yet.");
+        return 1;
     }
     for (int i = 2; i < argc; i++) {
         int flagforadd = 1;
@@ -207,6 +208,9 @@ int run_add(int argc, char **argv) {
         DIR *adding;
         DIR *staging;
         struct dirent *ToAdd;
+        if (strstr(argv[i], "/")){
+
+        }
         if ((adding = opendir(".")) == NULL) {
             perror("Something happened!");
             return 1;
@@ -238,6 +242,52 @@ int run_add(int argc, char **argv) {
             sprintf(command, "rsync -r %s .dambiz/staging", add_address);
             system(command);
             printf("%s had added successfully!\n", argv[i]);
+        }
+    }
+}
+
+
+int run_reset(int argc, char **argv) {
+    if (check_init() == 0) {
+        perror("You have not initialized in this folder or its parents yet.");
+        return 1;
+    }
+    if (strcmp(argv[2], "-undo") == 0){
+        if (argc == 3){
+            char command[1000];
+            sprintf(command, "rm -r ");
+        } else{
+            perror("Invalid Command!");
+            return 1;
+        }
+    }
+    for (int i = 2; i < argc; i++) {
+        int flagforreset = 1;
+        if (strcmp(argv[i], "-f") == 0) {
+            continue;
+        }
+        char reset_address[MAX_FILE_SIZE];
+        char stage_address[MAX_FILE_SIZE] = ".dambiz/staging/";
+        strcpy(reset_address, argv[i]);
+        strcat(stage_address, reset_address);
+        struct dirent *ToReset;
+        DIR *staging;
+        if ((staging = opendir(Staging)) == NULL) {
+            perror("couldn't open the staging folder");
+            return 1;
+        }
+        while ((ToReset = readdir(staging)) != NULL) {
+            if ((strcmp(ToReset->d_name, reset_address) == 0))  {
+                char command[1000];
+                sprintf(command, "rm -r %s", stage_address);
+                system(command);
+                printf("%s had reset successfully!\n", argv[i]);
+                flagforreset = 0;
+                break;
+            }
+        }
+        if (flagforreset){
+            printf("Can't reset %s because files do not exist!\n", argv[i]);
         }
     }
 }

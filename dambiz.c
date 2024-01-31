@@ -22,5 +22,11 @@ int main(int argc, char **argv) {
         } else {
             printf("Invalid Command!\n");
         }
+    } else if (strcmp(argv[1], "reset") == 0) {
+        if (argc > 2) {
+            run_reset(argc, argv);
+        } else {
+            printf("Invalid Command!\n");
+        }
     }
 }

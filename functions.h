@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "functions.c"
 
@@ -26,7 +27,10 @@ int directory_search(DIR* current, char name[]);
 
 int is_identical(char address1[], char address2[]);
 
-int check_add();
+int check_addfolder(char folderaddress[], char stageaddress[]);
+
+int run_reset(int argc, char **argv);
+
 
 #ifndef BP_PROJECT_FUNCTIONS_H
 #define BP_PROJECT_FUNCTIONS_H
