@@ -119,10 +119,10 @@ int run_init(int argc, char **argv) {
     }
 }
 
-int directory_search(DIR* current, char name[]){
-    struct dirent* insearch;
-    while ((insearch = readdir(current)) != NULL){
-        if((strcmp(insearch->d_name, name) == 0)){
+int directory_search(DIR *current, char name[]) {
+    struct dirent *insearch;
+    while ((insearch = readdir(current)) != NULL) {
+        if ((strcmp(insearch->d_name, name) == 0)) {
             return 1;
         }
     }
@@ -130,21 +130,21 @@ int directory_search(DIR* current, char name[]){
 }
 
 
-int is_identical(char address1[], char address2[]){
+int is_identical(char address1[], char address2[]) {
     FILE *f1 = fopen(address1, "rb");
     FILE *f2 = fopen(address2, "rb");
     char bf1, bf2;
-    while (1){
+    while (1) {
         fread(&bf1, 1, 1, f1) != 0;
         fread(&bf2, 1, 1, f2) != 0;
 
-        if (bf1 != bf2){
+        if (bf1 != bf2) {
             return 0;
         }
-        if ((feof(f1) && !feof(f2)) || (!feof(f1) && feof(f2))){
+        if ((feof(f1) && !feof(f2)) || (!feof(f1) && feof(f2))) {
             return 0;
         }
-        if (feof(f1) && feof(f2)){
+        if (feof(f1) && feof(f2)) {
             break;
         }
 
@@ -153,34 +153,41 @@ int is_identical(char address1[], char address2[]){
 }
 
 
-int check_add(char add_address[], char stage_address[]){
+int check_addfolder(char folderaddress[], char stageaddress[]) {
     DIR *adding;
     DIR *staging;
-    struct dirent* ToAdd;
-    if ((adding = opendir(".")) == NULL) {
+    struct dirent *ToAdd;
+
+    if ((adding = opendir(folderaddress)) == NULL) {
         perror("Something happened!");
+        return 0;
+    }
+    if ((staging = opendir(stageaddress)) == NULL) {
         return 1;
     }
-    if ((staging = opendir(Staging)) == NULL){
-        perror("couldn't open the staging folder");
-        return 1;
-    }
-    while ((ToAdd = readdir(adding)) != NULL){
-        if((strcmp(ToAdd->d_name, add_address) == 0) && ToAdd->d_type != DT_DIR){
-            if (directory_search(staging, add_address)){
-                if(is_identical(add_address, stage_address)) {
-                    perror("Can't add because files have not changed");
-                    return 1;
-                }
+    while ((ToAdd = readdir(adding)) != NULL) {
+        if (ToAdd->d_type != DT_DIR) {
+            char realfileadd[MAX_FILE_SIZE];
+            char stagefileadd[MAX_FILE_SIZE];
+            sprintf(realfileadd, "%s/%s", folderaddress, ToAdd->d_name);
+            sprintf(stagefileadd, "%s/%s", stageaddress, ToAdd->d_name);
+            if (directory_search(staging, ToAdd->d_name) == 0) {
+                return 1;
             }
-        } else if((strcmp(ToAdd->d_name, add_address) == 0) && ToAdd->d_type == DT_DIR){
-            if ((strcmp(ToAdd->d_name, ".") == 0) && (strcmp(ToAdd->d_name, "..") == 0)){
-                perror("1");
-            } else{
-                perror("2");
+            if (is_identical(realfileadd, stagefileadd) == 0) {
+                return 1;
+            }
+        } else if (ToAdd->d_type == DT_DIR && (strcmp(ToAdd->d_name, ".") != 0) && (strcmp(ToAdd->d_name, "..") != 0)) {
+            char newrealfolderadd[MAX_FILE_SIZE];
+            char newstagefolderadd[MAX_FILE_SIZE];
+            sprintf(newrealfolderadd, "%s/%s", folderaddress, ToAdd->d_name);
+            sprintf(newstagefolderadd, "%s/%s", stageaddress, ToAdd->d_name);
+            if (check_addfolder(newrealfolderadd, newstagefolderadd) != 0) {
+                return 1;
             }
         }
     }
+    return 0;
 }
 
 
@@ -188,41 +195,49 @@ int run_add(int argc, char **argv) {
     if (check_init() == 0) {
         perror("You have not initialized in this folder or its parents yet.");
     }
-    if (argc == 3) {
+    for (int i = 2; i < argc; i++) {
+        int flagforadd = 1;
+        if (strcmp(argv[i], "-f") == 0) {
+            continue;
+        }
         char add_address[MAX_FILE_SIZE];
         char stage_address[MAX_FILE_SIZE] = ".dambiz/staging/";
-        strcpy(add_address, argv[2]);
+        strcpy(add_address, argv[i]);
         strcat(stage_address, add_address);
         DIR *adding;
         DIR *staging;
-        struct dirent* ToAdd;
+        struct dirent *ToAdd;
         if ((adding = opendir(".")) == NULL) {
             perror("Something happened!");
             return 1;
         }
-        if ((staging = opendir(Staging)) == NULL){
+        if ((staging = opendir(Staging)) == NULL) {
             perror("couldn't open the staging folder");
             return 1;
         }
-        while ((ToAdd = readdir(adding)) != NULL){
-            if((strcmp(ToAdd->d_name, add_address) == 0) && ToAdd->d_type != DT_DIR){
-                if (directory_search(staging, add_address)){
-                    if(is_identical(add_address, stage_address)) {
-                        perror("Can't add because files have not changed");
-                        return 1;
+        while ((ToAdd = readdir(adding)) != NULL) {
+            if ((strcmp(ToAdd->d_name, add_address) == 0) && ToAdd->d_type != DT_DIR) {
+                if (directory_search(staging, add_address)) {
+                    if (is_identical(add_address, stage_address)) {
+                        printf("Can't add %s because files have not changed\n", argv[i]);
+                        flagforadd = 0;
+                        break;
                     }
                 }
-            } else if((strcmp(ToAdd->d_name, add_address) == 0) && ToAdd->d_type == DT_DIR){
-                if ((strcmp(ToAdd->d_name, ".") == 0) && (strcmp(ToAdd->d_name, "..") == 0)){
-                    perror("1");
-                } else{
-                    perror("2");
+            } else if ((strcmp(ToAdd->d_name, add_address) == 0) && ToAdd->d_type == DT_DIR) {
+                if (check_addfolder(add_address, stage_address) == 0) {
+                    printf("Can't add %s because files have not changed\n", argv[i]);
+                    flagforadd = 0;
+                    break;
                 }
+
             }
         }
-        char command[1000];
-        sprintf(command, "rsync -r %s .dambiz/staging", add_address);
-        system(command);
-        perror("added successfully!");
+        if (flagforadd) {
+            char command[1000];
+            sprintf(command, "rsync -r %s .dambiz/staging", add_address);
+            system(command);
+            printf("%s had added successfully!\n", argv[i]);
+        }
     }
 }
