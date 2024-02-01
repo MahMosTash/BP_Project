@@ -28,5 +28,11 @@ int main(int argc, char **argv) {
         } else {
             printf("Invalid Command!\n");
         }
+    }else if (strcmp(argv[1], "status") == 0) {
+        if (argc == 2) {
+            run_status(argc, argv);
+        } else {
+            printf("Invalid Command!\n");
+        }
     }
 }

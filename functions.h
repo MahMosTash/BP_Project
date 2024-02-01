@@ -31,6 +31,12 @@ int check_addfolder(char folderaddress[], char stageaddress[]);
 
 int run_reset(int argc, char **argv);
 
+void redo();
+
+void addn();
+
+int run_status(int argc, char **argv);
+
 
 #ifndef BP_PROJECT_FUNCTIONS_H
 #define BP_PROJECT_FUNCTIONS_H

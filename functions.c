@@ -1,8 +1,10 @@
 #define GlobalName "/home/mahmostash/Desktop/BP_Project/user/globalname.txt"
 #define GlobalEmail "/home/mahmostash/Desktop/BP_Project/user/globalemail.txt"
 #define Staging ".dambiz/staging"
+#define Addlog ".dambiz/tracks/addlog.txt"
 #define MAX_FILE_SIZE 5000
 #define MAX_NAME_SIZE 100
+
 
 int run_config(int argc, char **argv) {
     bool global = false;
@@ -89,11 +91,12 @@ int check_init() {
 
 
 void create_essentials() {
-    if (mkdir(".dambiz/user", 0755) || mkdir(".dambiz/alias", 0755) || mkdir(".dambiz/commits", 0755) ||
-        mkdir(".dambiz/staging", 0755) || mkdir(".dambiz/tracks", 0755)) {
+    if (mkdir(".dambiz/user", 0755) || mkdir(".dambiz/alias", 0755) || mkdir(".dambiz/branches", 0755) ||
+        mkdir(".dambiz/staging", 0755) || mkdir(".dambiz/tracks", 0755) || mkdir(".dambiz/branches/master", 0755) || mkdir(".dambiz/branches/master/commits", 0755)) {
         perror("Oops! Something bad happened!");
     }
-    if (fopen(".dambiz/user/localemail.txt", "w") == NULL || fopen(".dambiz/user/localname.txt", "w") == NULL) {
+    if (fopen(".dambiz/user/localemail.txt", "w") == NULL || fopen(".dambiz/tracks/addlog.txt", "w") == NULL ||
+        fopen(".dambiz/user/localemail.txt", "w") == NULL) {
         perror("Oops! Something bad happened!");
     }
 }
@@ -191,57 +194,164 @@ int check_addfolder(char folderaddress[], char stageaddress[]) {
 }
 
 
+void addn() {
+    DIR *adding;
+    struct dirent *ToAdd;
+    if ((adding = opendir(".")) == NULL) {
+        perror("couldn't open the staging folder");
+        return;
+    }
+    while ((ToAdd = readdir(adding)) != NULL) {
+        DIR *staging;
+        if ((staging = opendir(Staging)) == NULL) {
+            perror("couldn't open the staging folder");
+            return;
+        }
+        if ((strncmp(ToAdd->d_name, ".", 1) != 0)) {
+            if (ToAdd->d_type == DT_DIR) {
+                printf("%s ", ToAdd->d_name);
+                if (directory_search(staging, ToAdd->d_name)) {
+                    if (check_addfolder(ToAdd->d_name, Staging)) {
+                        printf("(staged!)\n");
+                    } else {
+                        printf("(not staged!)\n");
+                    }
+                } else {
+                    printf("(not staged!)\n");
+                }
+            } else{
+                printf("%s ", ToAdd->d_name);
+                if (directory_search(staging, ToAdd->d_name)) {
+                    char filestageadd[MAX_FILE_SIZE] = ".dambiz/staging/";
+                    strcat(filestageadd, ToAdd->d_name);
+                    if (is_identical(ToAdd->d_name, filestageadd)) {
+                        printf("(staged!)\n");
+                    } else {
+                        printf("(not staged!)\n");
+                    }
+                } else {
+                    printf("(not staged!)\n");
+                }
+            }
+        }
+    }
+}
+
+void redo() {
+    DIR *staging;
+    struct dirent *ToRedo;
+    if ((staging = opendir(Staging)) == NULL) {
+        perror("couldn't open the staging folder");
+        return;
+    }
+    while ((ToRedo = readdir(staging)) != NULL) {
+        if ((strcmp(ToRedo->d_name, ".") != 0) && (strcmp(ToRedo->d_name, "..") != 0)) {
+            if (opendir(ToRedo->d_name) == NULL && fopen(ToRedo->d_name, "rb") == NULL) {
+                char command[MAX_NAME_SIZE];
+                sprintf(command, "rm -r .dambiz/staging/%s", ToRedo->d_name);
+                system(command);
+            } else {
+                char command[MAX_NAME_SIZE];
+                sprintf(command, "cp -r --parents %s .dambiz/staging/", ToRedo->d_name);
+                system(command);
+            }
+        }
+    }
+    perror("Redo ran successfully!");
+    return;
+}
+
 int run_add(int argc, char **argv) {
     if (check_init() == 0) {
         perror("You have not initialized in this folder or its parents yet.");
         return 1;
     }
+    if ((argc == 3) && strcmp(argv[2], "-redo") == 0) {
+        redo();
+        return 1;
+    }
+    if ((argc == 3) && strcmp(argv[2], "-n") == 0) {
+        addn();
+        return 1;
+    }
     for (int i = 2; i < argc; i++) {
-        int flagforadd = 1;
+        int flagforadd = 0;
         if (strcmp(argv[i], "-f") == 0) {
             continue;
         }
         char add_address[MAX_FILE_SIZE];
         char stage_address[MAX_FILE_SIZE] = ".dambiz/staging/";
+        char file_name[MAX_FILE_SIZE];
+        char opening_folder[MAX_FILE_SIZE];
+        char opening_stage[MAX_FILE_SIZE];
         strcpy(add_address, argv[i]);
         strcat(stage_address, add_address);
         DIR *adding;
         DIR *staging;
         struct dirent *ToAdd;
-        if (strstr(argv[i], "/")){
-
-        }
-        if ((adding = opendir(".")) == NULL) {
-            perror("Something happened!");
-            return 1;
-        }
-        if ((staging = opendir(Staging)) == NULL) {
-            perror("couldn't open the staging folder");
-            return 1;
+        if (strstr(argv[i], "/")) {
+            int lastslash = strrchr(argv[i], '/') - argv[i];
+            strcpy(file_name, strrchr(argv[i], '/') + 1);
+            strncpy(opening_folder, argv[i], lastslash);
+            sprintf(opening_stage, "%s/%s", Staging, opening_folder);
+            if ((adding = opendir(opening_folder)) == NULL) {
+                perror("Address is not valid!");
+                return 1;
+            }
+            if ((staging = opendir(opening_stage)) == NULL) {
+                char command[1000];
+                sprintf(command, "cp -r --parents %s %s", add_address, Staging);
+                system(command);
+                printf("%s had added successfully!\n", argv[i]);
+                FILE *addlog = fopen(Addlog, "a");
+                fprintf(addlog, "%s/%s\n", opening_stage, file_name);
+                fclose(addlog);
+                return 1;
+            }
+        } else {
+            strcpy(file_name, argv[i]);
+            strcpy(opening_stage, Staging);
+            if ((adding = opendir(".")) == NULL) {
+                perror("Something happened!");
+                return 1;
+            }
+            if ((staging = opendir(Staging)) == NULL) {
+                perror("couldn't open the staging folder");
+                return 1;
+            }
         }
         while ((ToAdd = readdir(adding)) != NULL) {
-            if ((strcmp(ToAdd->d_name, add_address) == 0) && ToAdd->d_type != DT_DIR) {
-                if (directory_search(staging, add_address)) {
+            if ((strcmp(ToAdd->d_name, file_name) == 0) && ToAdd->d_type != DT_DIR) {
+                if (directory_search(staging, file_name)) {
                     if (is_identical(add_address, stage_address)) {
                         printf("Can't add %s because files have not changed\n", argv[i]);
-                        flagforadd = 0;
+                        flagforadd = 2;
                         break;
                     }
                 }
-            } else if ((strcmp(ToAdd->d_name, add_address) == 0) && ToAdd->d_type == DT_DIR) {
+                flagforadd = 1;
+            } else if ((strcmp(ToAdd->d_name, file_name) == 0) && ToAdd->d_type == DT_DIR) {
                 if (check_addfolder(add_address, stage_address) == 0) {
                     printf("Can't add %s because files have not changed\n", argv[i]);
-                    flagforadd = 0;
+                    flagforadd = 2;
                     break;
                 }
+                flagforadd = 1;
 
             }
         }
-        if (flagforadd) {
+        if (flagforadd == 1) {
             char command[1000];
-            sprintf(command, "rsync -r %s .dambiz/staging", add_address);
+            sprintf(command, "cp -r --parents %s %s", add_address, opening_stage);
             system(command);
             printf("%s had added successfully!\n", argv[i]);
+            FILE *addlog = fopen(Addlog, "a");
+            fprintf(addlog, "%s/%s\n", opening_stage, file_name);
+            fclose(addlog);
+            return 1;
+        } else if (flagforadd == 0) {
+            perror("No such file or directory!");
+            return 1;
         }
     }
 }
@@ -252,15 +362,37 @@ int run_reset(int argc, char **argv) {
         perror("You have not initialized in this folder or its parents yet.");
         return 1;
     }
-    if (strcmp(argv[2], "-undo") == 0){
-        if (argc == 3){
+    if (strcmp(argv[2], "-undo") == 0) {
+        if (argc == 3) {
+            FILE *addlog = fopen(Addlog, "r+");
+            char addlogcontent[MAX_FILE_SIZE];
+            char addlogcontent_copy[MAX_FILE_SIZE];
+            char rmcommand[20][MAX_FILE_SIZE];
+            fscanf(addlog, "%[^\r]s", addlogcontent);
+            fclose(addlog);
+            strcpy(addlogcontent_copy, addlogcontent);
+            char *rmcurrent = strtok(addlogcontent_copy, "\n");
+            int countofadd = 0;
+            while (rmcurrent != NULL) {
+                strcpy(rmcommand[countofadd++], rmcurrent);
+                rmcurrent = strtok(NULL, "\n");
+            }
+            char newaddlog[MAX_FILE_SIZE];
+            strncpy(newaddlog, addlogcontent, (strlen(addlogcontent) - 1 - strlen(rmcommand[countofadd - 1])));
             char command[1000];
-            sprintf(command, "rm -r ");
-        } else{
+            sprintf(command, "rm -r %s", rmcommand[countofadd - 1]);
+            system(command);
+            addlog = fopen(Addlog, "w");
+            fprintf(addlog, "%s", newaddlog);
+            fclose(addlog);
+            printf("undo was ran successfully!\n");
+            return 1;
+        } else {
             perror("Invalid Command!");
             return 1;
         }
     }
+
     for (int i = 2; i < argc; i++) {
         int flagforreset = 1;
         if (strcmp(argv[i], "-f") == 0) {
@@ -268,16 +400,28 @@ int run_reset(int argc, char **argv) {
         }
         char reset_address[MAX_FILE_SIZE];
         char stage_address[MAX_FILE_SIZE] = ".dambiz/staging/";
+        char file_name[MAX_FILE_SIZE];
+        char opening_folder[MAX_FILE_SIZE];
+        char opening_stage[MAX_FILE_SIZE];
         strcpy(reset_address, argv[i]);
         strcat(stage_address, reset_address);
         struct dirent *ToReset;
         DIR *staging;
-        if ((staging = opendir(Staging)) == NULL) {
-            perror("couldn't open the staging folder");
+        if (strstr(argv[i], "/")) {
+            int lastslash = strrchr(argv[i], '/') - argv[i];
+            strcpy(file_name, strrchr(argv[i], '/') + 1);
+            strncpy(opening_folder, argv[i], lastslash);
+            sprintf(opening_stage, "%s/%s", Staging, opening_folder);
+        } else {
+            strcpy(opening_stage, Staging);
+            strcpy(file_name, argv[i]);
+        }
+        if ((staging = opendir(opening_stage)) == NULL) {
+            perror("Invalid address!");
             return 1;
         }
         while ((ToReset = readdir(staging)) != NULL) {
-            if ((strcmp(ToReset->d_name, reset_address) == 0))  {
+            if ((strcmp(ToReset->d_name, file_name) == 0)) {
                 char command[1000];
                 sprintf(command, "rm -r %s", stage_address);
                 system(command);
@@ -286,8 +430,13 @@ int run_reset(int argc, char **argv) {
                 break;
             }
         }
-        if (flagforreset){
+        if (flagforreset) {
             printf("Can't reset %s because files do not exist!\n", argv[i]);
         }
     }
+}
+
+
+int run_status(int argc, char **argv){
+
 }
