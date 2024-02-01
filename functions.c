@@ -52,6 +52,7 @@ int run_config(int argc, char **argv) {
                 fclose(floc);
             }
         }
+        printf("new configuration added successfully!\n");
     } else {
         perror("Invalid Command!");
         return 1;
@@ -92,13 +93,22 @@ int check_init() {
 
 void create_essentials() {
     if (mkdir(".dambiz/user", 0755) || mkdir(".dambiz/alias", 0755) || mkdir(".dambiz/branches", 0755) ||
-        mkdir(".dambiz/staging", 0755) || mkdir(".dambiz/tracks", 0755) || mkdir(".dambiz/branches/master", 0755) || mkdir(".dambiz/branches/master/commits", 0755)) {
+        mkdir(".dambiz/staging", 0755) || mkdir(".dambiz/tracks", 0755) || mkdir(".dambiz/branches/master", 0755) ||
+        mkdir(".dambiz/branches/master/commits", 0755)) {
         perror("Oops! Something bad happened!");
     }
+    FILE *commit;
+    FILE *branch;
     if (fopen(".dambiz/user/localemail.txt", "w") == NULL || fopen(".dambiz/tracks/addlog.txt", "w") == NULL ||
-        fopen(".dambiz/user/localemail.txt", "w") == NULL) {
+        fopen(".dambiz/user/localname.txt", "w") == NULL ||
+        (commit = fopen(".dambiz/branches/commitcounter.txt", "w")) == NULL ||
+        (branch = fopen(".dambiz/branches/currentbranch.txt", "w")) == NULL) {
         perror("Oops! Something bad happened!");
     }
+    fprintf(commit, "0\n");
+    fprintf(branch, "master\n");
+    fclose(commit);
+    fclose(branch);
 }
 
 
@@ -219,7 +229,7 @@ void addn() {
                 } else {
                     printf("(not staged!)\n");
                 }
-            } else{
+            } else {
                 printf("%s ", ToAdd->d_name);
                 if (directory_search(staging, ToAdd->d_name)) {
                     char filestageadd[MAX_FILE_SIZE] = ".dambiz/staging/";
@@ -304,9 +314,10 @@ int run_add(int argc, char **argv) {
                 system(command);
                 printf("%s had added successfully!\n", argv[i]);
                 FILE *addlog = fopen(Addlog, "a");
-                fprintf(addlog, "%s/%s\n", opening_stage, file_name);
+                fprintf(addlog, "%s/%s ", opening_stage, file_name);
                 fclose(addlog);
-                return 1;
+                continue;
+
             }
         } else {
             strcpy(file_name, argv[i]);
@@ -346,9 +357,8 @@ int run_add(int argc, char **argv) {
             system(command);
             printf("%s had added successfully!\n", argv[i]);
             FILE *addlog = fopen(Addlog, "a");
-            fprintf(addlog, "%s/%s\n", opening_stage, file_name);
+            fprintf(addlog, "%s/%s ", opening_stage, file_name);
             fclose(addlog);
-            return 1;
         } else if (flagforadd == 0) {
             perror("No such file or directory!");
             return 1;
@@ -437,6 +447,80 @@ int run_reset(int argc, char **argv) {
 }
 
 
-int run_status(int argc, char **argv){
+int run_status(int argc, char **argv) {
 
+}
+
+
+int EmptyFolderCheck(DIR *checkingfolder) {
+    struct dirent *check;
+    int counter = -2;
+    while ((check = readdir(checkingfolder)) != NULL) {
+        counter++;
+    }
+    return counter;
+}
+
+
+int run_commit(int argc, char **argv) {
+    if (check_init() == 0) {
+        perror("You have not initialized in this folder or its parents yet.");
+        return 1;
+    }
+    if (strcmp(argv[2], "-m") == 0) {
+        DIR *staging = opendir(Staging);
+        if (EmptyFolderCheck(staging) == 0) {
+            printf("No staging file to commit :(\n");
+            return 1;
+        }
+        if (strlen(argv[argc - 1]) > 72){
+            printf("Your commit message is too long!\n");
+            return 1;
+        }
+        FILE *currentbranch;
+        if ((currentbranch = fopen(".dambiz/branches/currentbranch.txt", "r")) == NULL){
+            printf("ridi hamal\n");
+        }
+        FILE *counter = fopen(".dambiz/branches/commitcounter.txt", "r");
+        int commitcounter;
+        char path[MAX_FILE_SIZE];
+        fscanf(counter, "%d", &commitcounter);
+        char current[MAX_FILE_SIZE];
+        fscanf(currentbranch, "%[^\n]s", current);
+        commitcounter++;
+        fclose(counter);
+        counter = fopen(".dambiz/branches/commitcounter.txt", "w");
+        fprintf(counter, "%d", commitcounter);
+        fclose(currentbranch);
+        fclose(counter);
+        sprintf(path, ".dambiz/branches/%s/commits/%d", current, commitcounter);
+        if (mkdir(path, 0755) != 0){
+            perror("oops!");
+        }
+        char command[MAX_FILE_SIZE];
+        sprintf(command, "mv .dambiz/staging/* %s/", path);
+        system(command);
+        char time_path[MAX_FILE_SIZE];
+        sprintf(time_path, "%s/committime.txt", path);
+        strcat(path, "/comitmessage.txt");
+        FILE *commitmessage = fopen(path, "w");
+        fprintf(commitmessage, "%s", argv[3]);
+        fclose(commitmessage);
+        printf("Commited successfully!\n\n\n");
+        time_t currenttime;
+        struct tm * ptr_time;
+        char mytime[50];
+        time ( &currenttime);
+        ptr_time = localtime ( &currenttime );
+        if(strftime(mytime,50,"%Y.%m.%d %A - %H:%M:%S",ptr_time) == 0){
+            perror("Couldn't prepare time formatted string\n");
+        }
+        FILE *committime = fopen(time_path, "w");
+        fprintf(committime, "%s", mytime);
+        fclose(committime);
+        printf("Commit ID:   %d\nCommit Message:   %s\nCommitting Time:   %s\n",commitcounter, argv[3], mytime);
+    } else {
+        perror("Invalid Command!");
+        return 1;
+    }
 }

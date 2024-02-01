@@ -19,6 +19,9 @@ int main(int argc, char **argv) {
     } else if (strcmp(argv[1], "add") == 0) {
         if (argc > 2) {
             run_add(argc, argv);
+            FILE *addlog = fopen(Addlog, "a");
+            fprintf(addlog, "\n");
+            fclose(addlog);
         } else {
             printf("Invalid Command!\n");
         }
@@ -28,11 +31,21 @@ int main(int argc, char **argv) {
         } else {
             printf("Invalid Command!\n");
         }
-    }else if (strcmp(argv[1], "status") == 0) {
+    } else if (strcmp(argv[1], "status") == 0) {
         if (argc == 2) {
             run_status(argc, argv);
         } else {
             printf("Invalid Command!\n");
         }
+    } else if (strcmp(argv[1], "commit") == 0) {
+        if (argc == 4) {
+            run_commit(argc, argv);
+        } else if ((argc == 3) && strcmp(argv[2], "-m") == 0){
+            printf("You can not commit without a commit message!\n");
+        }
+        else {
+            printf("Invalid Command!\n");
+        }
+
     }
 }

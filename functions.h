@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
+#include <sys/time.h>
 
 #include "functions.c"
 
@@ -36,6 +37,10 @@ void redo();
 void addn();
 
 int run_status(int argc, char **argv);
+
+int run_commit(int argc, char **argv);
+
+int EmptyFolderCheck(DIR *checkingfolder);
 
 
 #ifndef BP_PROJECT_FUNCTIONS_H
