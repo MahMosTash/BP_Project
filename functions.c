@@ -4,7 +4,7 @@
 #define Addlog ".dambiz/tracks/addlog.txt"
 #define MAX_FILE_SIZE 5000
 #define MAX_NAME_SIZE 100
-
+#define MAX_ADDRESS_SIZE 500
 
 int run_config(int argc, char **argv) {
     bool global = false;
@@ -99,14 +99,44 @@ void create_essentials() {
     }
     FILE *commit;
     FILE *branch;
-    if (fopen(".dambiz/user/localemail.txt", "w") == NULL || fopen(".dambiz/tracks/addlog.txt", "w") == NULL ||
-        fopen(".dambiz/user/localname.txt", "w") == NULL ||
+    FILE *localname;
+    FILE *localemail;
+    FILE *globalname;
+    FILE *globalemail;
+
+    char name[MAX_NAME_SIZE];
+    char email[MAX_NAME_SIZE];
+
+    if ((globalname = fopen(GlobalName, "r")) == NULL) {
+        perror("oops");
+    }
+    globalemail = fopen(GlobalEmail, "r");
+
+    fscanf(globalname, "%[^\r]s", name);
+    fscanf(globalemail, "%[^\r]s", email);
+
+    fclose(globalname);
+    fclose(globalemail);
+
+
+    if ((localemail = fopen(".dambiz/user/localemail.txt", "w")) == NULL ||
+        fopen(".dambiz/tracks/addlog.txt", "w") == NULL ||
+        (localname = fopen(".dambiz/user/localname.txt", "w")) == NULL ||
         (commit = fopen(".dambiz/branches/commitcounter.txt", "w")) == NULL ||
-        (branch = fopen(".dambiz/branches/currentbranch.txt", "w")) == NULL) {
+        (branch = fopen(".dambiz/branches/currentbranch.txt", "w")) == NULL ||
+        (fopen(".dambiz/tracks/commitlog.txt", "w")) == NULL) {
         perror("Oops! Something bad happened!");
     }
     fprintf(commit, "0\n");
     fprintf(branch, "master\n");
+
+
+    fprintf(localname, "%s", name);
+    fprintf(localemail, "%s", email);
+
+    fclose(localname);
+    fclose(localemail);
+
     fclose(commit);
     fclose(branch);
 }
@@ -180,8 +210,8 @@ int check_addfolder(char folderaddress[], char stageaddress[]) {
     }
     while ((ToAdd = readdir(adding)) != NULL) {
         if (ToAdd->d_type != DT_DIR) {
-            char realfileadd[MAX_FILE_SIZE];
-            char stagefileadd[MAX_FILE_SIZE];
+            char realfileadd[MAX_ADDRESS_SIZE];
+            char stagefileadd[MAX_ADDRESS_SIZE];
             sprintf(realfileadd, "%s/%s", folderaddress, ToAdd->d_name);
             sprintf(stagefileadd, "%s/%s", stageaddress, ToAdd->d_name);
             if (directory_search(staging, ToAdd->d_name) == 0) {
@@ -191,8 +221,8 @@ int check_addfolder(char folderaddress[], char stageaddress[]) {
                 return 1;
             }
         } else if (ToAdd->d_type == DT_DIR && (strcmp(ToAdd->d_name, ".") != 0) && (strcmp(ToAdd->d_name, "..") != 0)) {
-            char newrealfolderadd[MAX_FILE_SIZE];
-            char newstagefolderadd[MAX_FILE_SIZE];
+            char newrealfolderadd[MAX_ADDRESS_SIZE];
+            char newstagefolderadd[MAX_ADDRESS_SIZE];
             sprintf(newrealfolderadd, "%s/%s", folderaddress, ToAdd->d_name);
             sprintf(newstagefolderadd, "%s/%s", stageaddress, ToAdd->d_name);
             if (check_addfolder(newrealfolderadd, newstagefolderadd) != 0) {
@@ -232,7 +262,7 @@ void addn() {
             } else {
                 printf("%s ", ToAdd->d_name);
                 if (directory_search(staging, ToAdd->d_name)) {
-                    char filestageadd[MAX_FILE_SIZE] = ".dambiz/staging/";
+                    char filestageadd[MAX_ADDRESS_SIZE] = ".dambiz/staging/";
                     strcat(filestageadd, ToAdd->d_name);
                     if (is_identical(ToAdd->d_name, filestageadd)) {
                         printf("(staged!)\n");
@@ -289,11 +319,11 @@ int run_add(int argc, char **argv) {
         if (strcmp(argv[i], "-f") == 0) {
             continue;
         }
-        char add_address[MAX_FILE_SIZE];
-        char stage_address[MAX_FILE_SIZE] = ".dambiz/staging/";
-        char file_name[MAX_FILE_SIZE];
-        char opening_folder[MAX_FILE_SIZE];
-        char opening_stage[MAX_FILE_SIZE];
+        char add_address[MAX_ADDRESS_SIZE];
+        char stage_address[MAX_ADDRESS_SIZE] = ".dambiz/staging/";
+        char file_name[MAX_NAME_SIZE];
+        char opening_folder[MAX_ADDRESS_SIZE];
+        char opening_stage[MAX_ADDRESS_SIZE];
         strcpy(add_address, argv[i]);
         strcat(stage_address, add_address);
         DIR *adding;
@@ -367,6 +397,22 @@ int run_add(int argc, char **argv) {
 }
 
 
+void Finding_lastline(FILE *given_file, char* str){
+    char content[MAX_FILE_SIZE];
+    char content_copy[MAX_FILE_SIZE];
+    char lines[20][MAX_FILE_SIZE];
+    fscanf(given_file, "%[^\r]s", content);
+    fclose(given_file);
+    strcpy(content_copy, content);
+    char *currentline = strtok(content_copy, "\n");
+    int countofline = 0;
+    while (currentline != NULL) {
+        strcpy(lines[countofline++], currentline);
+        currentline = strtok(NULL, "\n");
+    }
+    strcpy(str, lines[countofline - 1]);
+}
+
 int run_reset(int argc, char **argv) {
     if (check_init() == 0) {
         perror("You have not initialized in this folder or its parents yet.");
@@ -408,11 +454,11 @@ int run_reset(int argc, char **argv) {
         if (strcmp(argv[i], "-f") == 0) {
             continue;
         }
-        char reset_address[MAX_FILE_SIZE];
-        char stage_address[MAX_FILE_SIZE] = ".dambiz/staging/";
-        char file_name[MAX_FILE_SIZE];
-        char opening_folder[MAX_FILE_SIZE];
-        char opening_stage[MAX_FILE_SIZE];
+        char reset_address[MAX_ADDRESS_SIZE];
+        char stage_address[MAX_ADDRESS_SIZE] = ".dambiz/staging/";
+        char file_name[MAX_NAME_SIZE];
+        char opening_folder[MAX_ADDRESS_SIZE];
+        char opening_stage[MAX_ADDRESS_SIZE];
         strcpy(reset_address, argv[i]);
         strcat(stage_address, reset_address);
         struct dirent *ToReset;
@@ -453,9 +499,8 @@ int run_status(int argc, char **argv) {
 
 
 int EmptyFolderCheck(DIR *checkingfolder) {
-    struct dirent *check;
     int counter = -2;
-    while ((check = readdir(checkingfolder)) != NULL) {
+    while ((readdir(checkingfolder)) != NULL) {
         counter++;
     }
     return counter;
@@ -467,37 +512,48 @@ int run_commit(int argc, char **argv) {
         perror("You have not initialized in this folder or its parents yet.");
         return 1;
     }
+    int commiting_files;
+
     if (strcmp(argv[2], "-m") == 0) {
         DIR *staging = opendir(Staging);
-        if (EmptyFolderCheck(staging) == 0) {
+        if ((commiting_files = EmptyFolderCheck(staging)) == 0) {
             printf("No staging file to commit :(\n");
             return 1;
         }
-        if (strlen(argv[argc - 1]) > 72){
+
+
+        if (strlen(argv[argc - 1]) > 72) {
             printf("Your commit message is too long!\n");
             return 1;
         }
+
+
         FILE *currentbranch;
-        if ((currentbranch = fopen(".dambiz/branches/currentbranch.txt", "r")) == NULL){
-            printf("ridi hamal\n");
+        if ((currentbranch = fopen(".dambiz/branches/currentbranch.txt", "r")) == NULL) {
+            printf("WTAF\n");
         }
+
+
         FILE *counter = fopen(".dambiz/branches/commitcounter.txt", "r");
+        FILE *commitlog = fopen(".dambiz/tracks/commitlog.txt", "a");
         int commitcounter;
-        char path[MAX_FILE_SIZE];
+        char path[MAX_ADDRESS_SIZE];
         fscanf(counter, "%d", &commitcounter);
-        char current[MAX_FILE_SIZE];
+        char current[MAX_ADDRESS_SIZE];
         fscanf(currentbranch, "%[^\n]s", current);
         commitcounter++;
         fclose(counter);
+        fprintf(commitlog, ".dambiz/branches/%s/commits/%d\n", current, commitcounter);
         counter = fopen(".dambiz/branches/commitcounter.txt", "w");
         fprintf(counter, "%d", commitcounter);
         fclose(currentbranch);
         fclose(counter);
+        fclose(commitlog);
         sprintf(path, ".dambiz/branches/%s/commits/%d", current, commitcounter);
-        if (mkdir(path, 0755) != 0){
+        if (mkdir(path, 0755) != 0) {
             perror("oops!");
         }
-        char command[MAX_FILE_SIZE];
+        char command[MAX_ADDRESS_SIZE];
         sprintf(command, "mv .dambiz/staging/* %s/", path);
         system(command);
         char time_path[MAX_FILE_SIZE];
@@ -506,21 +562,59 @@ int run_commit(int argc, char **argv) {
         FILE *commitmessage = fopen(path, "w");
         fprintf(commitmessage, "%s", argv[3]);
         fclose(commitmessage);
-        printf("Commited successfully!\n\n\n");
+        printf("%d Files commited successfully!\n\n\n", commiting_files);
         time_t currenttime;
-        struct tm * ptr_time;
+        struct tm *ptr_time;
         char mytime[50];
-        time ( &currenttime);
-        ptr_time = localtime ( &currenttime );
-        if(strftime(mytime,50,"%Y.%m.%d %A - %H:%M:%S",ptr_time) == 0){
+        time(&currenttime);
+        ptr_time = localtime(&currenttime);
+        if (strftime(mytime, 50, "%Y.%m.%d %A - %H:%M:%S", ptr_time) == 0) {
             perror("Couldn't prepare time formatted string\n");
         }
         FILE *committime = fopen(time_path, "w");
         fprintf(committime, "%s", mytime);
         fclose(committime);
-        printf("Commit ID:   %d\nCommit Message:   %s\nCommitting Time:   %s\n",commitcounter, argv[3], mytime);
+        printf("Commit ID:   %d\nCommit Message:   %s\nCommitting Time:   %s\n", commitcounter, argv[3], mytime);
     } else {
         perror("Invalid Command!");
         return 1;
+    }
+}
+
+int run_branch(int argc, char **argv) {
+    if (check_init() == 0) {
+        perror("You have not initialized in this folder or its parents yet.");
+        return 1;
+    }
+    if (argc == 3) {
+        DIR *branches;
+        branches = opendir(".dambiz/branches");
+        if (directory_search(branches, argv[2])) {
+            printf("Branch name can not be used because it already exists!\n");
+            return 1;
+        }
+        char path[MAX_ADDRESS_SIZE];
+        sprintf(path, ".dambiz/branches/%s", argv[2]);
+        mkdir(path, 0755);
+        strcat(path, "/commits");
+        mkdir(path, 0755);
+        char commitpath[MAX_ADDRESS_SIZE];
+        FILE *commitlog = fopen(".dambiz/tracks/commitlog.txt", "r");
+        Finding_lastline(commitlog, commitpath);
+        char command[MAX_ADDRESS_SIZE];
+        sprintf(command, "cp -r %s %s/", commitpath, path);
+        system(command);
+        printf("Branch created successfully!\n");
+    } else {
+        DIR *branches;
+        branches = opendir(".dambiz/branches");
+        struct dirent *branch;
+        int counter = 1;
+        while ((branch = readdir(branches)) != NULL) {
+            if ((strcmp(".", branch->d_name) != 0) && (strcmp("..", branch->d_name) != 0) &&
+                (strstr(branch->d_name, ".txt") == NULL)) {
+                printf("Branch %d: %s\n", counter++, branch->d_name);
+            }
+        }
     }
 }

@@ -47,5 +47,13 @@ int main(int argc, char **argv) {
             printf("Invalid Command!\n");
         }
 
+    }else if (strcmp(argv[1], "branch") == 0) {
+        if (argc < 4) {
+            run_branch(argc, argv);
+        }
+        else {
+            printf("Invalid Command!\n");
+        }
+
     }
 }

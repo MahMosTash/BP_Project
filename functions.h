@@ -43,6 +43,11 @@ int run_commit(int argc, char **argv);
 int EmptyFolderCheck(DIR *checkingfolder);
 
 
+int run_branch(int argc, char** argv);
+
+void Finding_lastline(FILE *given_file, char* str);
+
+
 #ifndef BP_PROJECT_FUNCTIONS_H
 #define BP_PROJECT_FUNCTIONS_H
 
