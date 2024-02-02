@@ -516,6 +516,20 @@ int EmptyFolderCheck(DIR *checkingfolder) {
 }
 
 
+int FindHead(DIR *branch) {
+    int max = 0;
+    struct dirent *current_commit;
+    while ((current_commit = readdir(branch)) != NULL) {
+        if (strstr(current_commit->d_name, ".") == NULL) {
+            if (atoi(current_commit->d_name) > max) {
+                max = atoi(current_commit->d_name);
+            }
+        }
+    }
+    return max;
+}
+
+
 int run_commit(int argc, char **argv) {
     if (check_init() == 0) {
         perror("You have not initialized in this folder or its parents yet.");
@@ -555,8 +569,16 @@ int run_commit(int argc, char **argv) {
         fclose(counter);
 
         char path[MAX_ADDRESS_SIZE];
+        char branchpath[MAX_ADDRESS_SIZE];
+
+        sprintf(branchpath, ".dambiz/branches/%s/commits", current);
         sprintf(path, ".dambiz/branches/%s/commits/%d", current, commitcounter);
 
+        DIR *curb = opendir(branchpath);
+        int head = FindHead(curb);
+
+        char headpath[MAX_ADDRESS_SIZE];
+        sprintf(headpath, ".dambiz/branches/%s/commits/%d", current, head);
 
         if (mkdir(path, 0755) != 0) {
             perror("oops!\n");
@@ -564,13 +586,10 @@ int run_commit(int argc, char **argv) {
 
 
         FILE *commitslog;
-        FILE *copylog = fopen(".dambiz/tracks/commitlog.txt", "r");
         if (commitcounter != 1) {
-            char source[MAX_ADDRESS_SIZE];
-            Finding_lastline(copylog, source, current);
+
             char copy_command[MAX_FILE_SIZE];
-            sprintf(copy_command, "cp -r %s/* %s/", source, path);
-            printf("%s", copy_command);
+            sprintf(copy_command, "cp -r %s/* %s/", headpath, path);
             system(copy_command);
         }
         commitslog = fopen(".dambiz/tracks/commitlog.txt", "a");
@@ -848,20 +867,6 @@ int run_log(int argc, char **argv) {
 }
 
 
-int FindHead(DIR *branch) {
-    int max = 0;
-    struct dirent *current_commit;
-    while ((current_commit = readdir(branch)) != NULL) {
-        if (strstr(current_commit->d_name, ".") == NULL) {
-            if (atoi(current_commit->d_name) > max) {
-                max = atoi(current_commit->d_name);
-            }
-        }
-    }
-    return max;
-}
-
-
 int run_checkout(int argc, char **argv) {
     if (check_init() == 0) {
         perror("You have not initialized in this folder or its parents yet.");
@@ -882,7 +887,6 @@ int run_checkout(int argc, char **argv) {
         return 1;
     }
 
-
     FILE *currentb = fopen(CURRENT_BRANCH, "r");
     char currentbranch[MAX_NAME_SIZE];
     fscanf(currentb, "%[^\n]s", currentbranch);
@@ -893,19 +897,49 @@ int run_checkout(int argc, char **argv) {
     sprintf(currentbranchpath, ".dambiz/branches/%s/commits", currentbranch);
     DIR *cbranch = opendir(currentbranchpath);
     int HC = FindHead(cbranch);
-
-
     char headcommitpath[MAX_ADDRESS_SIZE];
     sprintf(headcommitpath, "%s/%d", currentbranchpath, HC);
+
+
+    char newbcommitpath[MAX_ADDRESS_SIZE];
+    sprintf(newbcommitpath, ".dambiz/branches/%s/commits", argv[2]);
+    DIR *nbranch = opendir(newbcommitpath);
+    int HN = FindHead(nbranch);
+    char newbranchcommit[MAX_ADDRESS_SIZE];
+    sprintf(newbranchcommit, "%s/%d", currentbranchpath, HN);
+
 
     if (check_addfolder(".", headcommitpath) == 1) {
         printf("You can not checkout because there are changed files that are not committed!\n");
         return 1;
     }
 
+
     currentb = fopen(CURRENT_BRANCH, "w");
     fprintf(currentb, "%s\n", argv[2]);
     fclose(currentb);
+
+
+    DIR *WhereWeAre = opendir(".");
+    struct dirent *myf;
+    while ((myf = readdir(WhereWeAre)) != NULL) {
+        if (strncmp(myf->d_name, ".", 1) != 0) {
+            char command[MAX_ADDRESS_SIZE];
+            sprintf(command, "rm -r %s", myf->d_name);
+            system(command);
+        }
+    }
+
+    DIR *HeadCommit = opendir(newbranchcommit);
+    struct dirent *cf;
+    while ((cf = readdir(HeadCommit)) != NULL) {
+        if ((strncmp(cf->d_name, ".", 1) != 0) && (strcmp(cf->d_name, "author.txt") != 0) && (strcmp(cf->d_name, "commitmessage.txt") != 0) && (strcmp(cf->d_name, "committime.txt") != 0) && (strcmp(cf->d_name, "log.txt") != 0)) {
+            char command[MAX_ADDRESS_SIZE];
+            sprintf(command, "cp -r %s/%s .", newbranchcommit, cf->d_name);
+            system(command);
+        }
+    }
+
     printf("Checkout ran successfully!\n");
 }
 
