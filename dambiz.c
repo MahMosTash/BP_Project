@@ -1,5 +1,4 @@
 #include "functions.h"
-
 int main(int argc, char **argv) {
     if (argc < 2) {
         perror("Invalid Command!\n");
@@ -57,6 +56,12 @@ int main(int argc, char **argv) {
     }else if (strcmp(argv[1], "branch") == 0) {
         if (argc < 4) {
             run_branch(argc, argv);
+        } else {
+            printf("Invalid Command!\n");
+        }
+    }else if (strcmp(argv[1], "checkout") == 0) {
+        if (argc == 3) {
+            run_checkout(argc, argv);
         } else {
             printf("Invalid Command!\n");
         }

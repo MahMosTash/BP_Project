@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
-#include <sys/time.h>
+#include <locale.h>
 
 #include "functions.c"
 
@@ -44,7 +44,15 @@ int run_log(int argc, char **argv);
 
 int run_branch(int argc, char **argv);
 
-void Finding_lastline(FILE *given_file, char *str);
+void Finding_lastline(FILE *given_file, char *str, char* currentbranch);
+
+int FindHead(DIR * branch);
+
+
+int run_checkout(int argc, char **argv);
+
+
+
 
 
 #ifndef BP_PROJECT_FUNCTIONS_H

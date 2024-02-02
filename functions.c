@@ -1,10 +1,14 @@
 #define GlobalName "/home/mahmostash/Desktop/BP_Project/user/globalname.txt"
 #define GlobalEmail "/home/mahmostash/Desktop/BP_Project/user/globalemail.txt"
+#define Temp "/home/mahmostash/Desktop/BP_Project/Temp/"
 #define Staging ".dambiz/staging"
 #define Addlog ".dambiz/tracks/addlog.txt"
+#define Branches ".dambiz/branches"
+#define CURRENT_BRANCH ".dambiz/branches/currentbranch.txt"
 #define MAX_FILE_SIZE 5000
 #define MAX_NAME_SIZE 100
 #define MAX_ADDRESS_SIZE 500
+
 
 int run_config(int argc, char **argv) {
     bool global = false;
@@ -119,11 +123,11 @@ void create_essentials() {
     fclose(globalemail);
 
 
-    if ((localemail = fopen(".dambiz/user/localemail.txt", "w")) == NULL ||
-        fopen(".dambiz/tracks/addlog.txt", "w") == NULL ||
+    if (((localemail = fopen(".dambiz/user/localemail.txt", "w")) == NULL) ||
+        (fopen(".dambiz/tracks/addlog.txt", "w") == NULL) ||
         (localname = fopen(".dambiz/user/localname.txt", "w")) == NULL ||
-        (commit = fopen(".dambiz/branches/commitcounter.txt", "w")) == NULL ||
-        (branch = fopen(".dambiz/branches/currentbranch.txt", "w")) == NULL ||
+        ((commit = fopen(".dambiz/branches/commitcounter.txt", "w")) == NULL) ||
+        (branch = fopen(CURRENT_BRANCH, "w")) == NULL ||
         (fopen(".dambiz/tracks/commitlog.txt", "w")) == NULL) {
         perror("Oops! Something bad happened!");
     }
@@ -220,7 +224,7 @@ int check_addfolder(char folderaddress[], char stageaddress[]) {
             if (is_identical(realfileadd, stagefileadd) == 0) {
                 return 1;
             }
-        } else if (ToAdd->d_type == DT_DIR && (strcmp(ToAdd->d_name, ".") != 0) && (strcmp(ToAdd->d_name, "..") != 0)) {
+        } else if (ToAdd->d_type == DT_DIR && (strncmp(ToAdd->d_name, ".", 1) != 0)) {
             char newrealfolderadd[MAX_ADDRESS_SIZE];
             char newstagefolderadd[MAX_ADDRESS_SIZE];
             sprintf(newrealfolderadd, "%s/%s", folderaddress, ToAdd->d_name);
@@ -397,7 +401,7 @@ int run_add(int argc, char **argv) {
 }
 
 
-void Finding_lastline(FILE *given_file, char *str) {
+void Finding_lastline(FILE *given_file, char *str, char *current_branch) {
     char content[MAX_FILE_SIZE];
     char content_copy[MAX_FILE_SIZE];
     char lines[20][MAX_FILE_SIZE];
@@ -410,7 +414,12 @@ void Finding_lastline(FILE *given_file, char *str) {
         strcpy(lines[countofline++], currentline);
         currentline = strtok(NULL, "\n");
     }
-    strcpy(str, lines[countofline - 1]);
+    for (int i = (countofline - 1); i >= 0; i--) {
+        if (strstr(lines[i], current_branch)) {
+            strcpy(str, lines[countofline - 1]);
+            return;
+        }
+    }
 }
 
 int run_reset(int argc, char **argv) {
@@ -441,7 +450,7 @@ int run_reset(int argc, char **argv) {
             addlog = fopen(Addlog, "w");
             fprintf(addlog, "%s", newaddlog);
             fclose(addlog);
-            printf("undo was ran successfully!\n");
+            printf("undo ran successfully!\n");
             return 1;
         } else {
             perror("Invalid Command!");
@@ -529,7 +538,7 @@ int run_commit(int argc, char **argv) {
 
 
         FILE *currentbranch;
-        if ((currentbranch = fopen(".dambiz/branches/currentbranch.txt", "r")) == NULL) {
+        if ((currentbranch = fopen(CURRENT_BRANCH, "r")) == NULL) {
             printf("WTAF\n");
         }
         char current[MAX_ADDRESS_SIZE];
@@ -556,11 +565,12 @@ int run_commit(int argc, char **argv) {
 
         FILE *commitslog;
         FILE *copylog = fopen(".dambiz/tracks/commitlog.txt", "r");
-        if(commitcounter != 1){
+        if (commitcounter != 1) {
             char source[MAX_ADDRESS_SIZE];
-            Finding_lastline(copylog, source);
+            Finding_lastline(copylog, source, current);
             char copy_command[MAX_FILE_SIZE];
             sprintf(copy_command, "cp -r %s/* %s/", source, path);
+            printf("%s", copy_command);
             system(copy_command);
         }
         commitslog = fopen(".dambiz/tracks/commitlog.txt", "a");
@@ -589,16 +599,20 @@ int run_commit(int argc, char **argv) {
         time_t currenttime;
         struct tm *ptr_time;
         char mytime[50];
+        char savetime[50];
         time(&currenttime);
         ptr_time = localtime(&currenttime);
-        if (strftime(mytime, 50, "%Y.%m.%d %A - %H:%M:%S", ptr_time) == 0) {
+        if (strftime(mytime, 50, "%A %Y.%m.%d - %H:%M:%S", ptr_time) == 0) {
+            perror("Couldn't prepare time formatted string\n");
+        }
+        if (strftime(savetime, 50, "%s", ptr_time) == 0) {
             perror("Couldn't prepare time formatted string\n");
         }
 
 
         FILE *comauthor = fopen(commitauthor, "w");
         FILE *committime = fopen(time_path, "w");
-        fprintf(committime, "%s", mytime);
+        fprintf(committime, "%s", savetime);
         fclose(committime);
 
 
@@ -632,14 +646,23 @@ int run_branch(int argc, char **argv) {
             printf("Branch name can not be used because it already exists!\n");
             return 1;
         }
+        char commitpath[MAX_ADDRESS_SIZE];
+        char current[MAX_NAME_SIZE];
+        FILE *commitlog = fopen(".dambiz/tracks/commitlog.txt", "r");
+        FILE *currentbranch = fopen(CURRENT_BRANCH, "r");
+        fscanf(currentbranch, "%[^\n]s", current);
+
+        Finding_lastline(commitlog, commitpath, current);
+        if (strlen(commitpath) == 0) {
+            printf("Can not create a branch without committing!\n");
+            return 1;
+        }
+
         char path[MAX_ADDRESS_SIZE];
         sprintf(path, ".dambiz/branches/%s", argv[2]);
         mkdir(path, 0755);
         strcat(path, "/commits");
         mkdir(path, 0755);
-        char commitpath[MAX_ADDRESS_SIZE];
-        FILE *commitlog = fopen(".dambiz/tracks/commitlog.txt", "r");
-        Finding_lastline(commitlog, commitpath);
         char command[MAX_ADDRESS_SIZE];
         sprintf(command, "cp -r %s %s/", commitpath, path);
         system(command);
@@ -754,17 +777,17 @@ int run_log(int argc, char **argv) {
         if (!counter) {
             printf("No commits available with this author!\n\n\n");
         }
-    }else if((argc == 4) && strcmp(argv[2] , "-search") == 0){
+    } else if ((argc == 4) && strcmp(argv[2], "-search") == 0) {
         printf("\n\n");
         int counter = 0;
         char words[20][MAX_NAME_SIZE];
         char *word = strtok(argv[3], " ");
         int countofwords = 0;
-        while (word != NULL){
+        while (word != NULL) {
             strcpy(words[countofwords++], word);
             word = strtok(NULL, " ");
         }
-        for (int i = (countoflog - 1); i >= 0 ; i--) {
+        for (int i = (countoflog - 1); i >= 0; i--) {
             char path[MAX_ADDRESS_SIZE];
             char message_path[MAX_ADDRESS_SIZE];
             sprintf(path, "%s/log.txt", logs[i]);
@@ -773,13 +796,13 @@ int run_log(int argc, char **argv) {
             char commitmessage[MAX_NAME_SIZE];
             fscanf(message, "%[^\r]s", commitmessage);
             int found = 0;
-            for (int j = 0; j < countofwords; j++){
-                if (strstr(commitmessage, words[j]) != NULL){
+            for (int j = 0; j < countofwords; j++) {
+                if (strstr(commitmessage, words[j]) != NULL) {
                     found++;
                     break;
                 }
             }
-            if (!found){
+            if (!found) {
                 continue;
             }
             FILE *currentlog = fopen(path, "r");
@@ -789,8 +812,101 @@ int run_log(int argc, char **argv) {
             fclose(currentlog);
             counter++;
         }
-        if (!counter){
+        if (!counter) {
             printf("No commits available with this author!\n\n\n");
         }
+    } else if ((argc == 4) && (strcmp(argv[2], "-since") == 0 || strcmp(argv[2], "-before") == 0)) {
+        printf("\n\n");
+        int counter = 0;
+        for (int i = (countoflog - 1); i >= 0; i--) {
+            char path[MAX_ADDRESS_SIZE];
+            char time_path[MAX_ADDRESS_SIZE];
+            sprintf(path, "%s/log.txt", logs[i]);
+            sprintf(time_path, "%s/committime.txt", logs[i]);
+            FILE *time = fopen(time_path, "r");
+            char date[MAX_NAME_SIZE];
+            fscanf(time, "%[^\r]s", date);
+            if ((atoi(argv[3]) < atoi(date)) && (strcmp(argv[2], "-before") == 0)) {
+                continue;
+            }
+            if ((atoi(argv[3]) > atoi(date)) && (strcmp(argv[2], "-since") == 0)) {
+                continue;
+            }
+            FILE *currentlog = fopen(path, "r");
+            char logcontent[MAX_FILE_SIZE];
+            fscanf(currentlog, "%[^\r]s", logcontent);
+            printf("%s\n\n", logcontent);
+            fclose(currentlog);
+            counter++;
+        }
+        if (!counter) {
+            printf("No commits available with expected commit time!\n\n\n");
+        }
+    } else {
+        printf("Invalid Command!\n");
     }
 }
+
+
+int FindHead(DIR *branch) {
+    int max = 0;
+    struct dirent *current_commit;
+    while ((current_commit = readdir(branch)) != NULL) {
+        if (strstr(current_commit->d_name, ".") == NULL) {
+            if (atoi(current_commit->d_name) > max) {
+                max = atoi(current_commit->d_name);
+            }
+        }
+    }
+    return max;
+}
+
+
+int run_checkout(int argc, char **argv) {
+    if (check_init() == 0) {
+        perror("You have not initialized in this folder or its parents yet.");
+        return 1;
+    }
+
+
+    DIR *staging = opendir(Staging);
+    if (EmptyFolderCheck(staging)) {
+        printf("Staging folder is not empty! commit recently staged files\n");
+        return 1;
+    }
+
+
+    DIR *branches = opendir(Branches);
+    if (directory_search(branches, argv[2]) == 0) {
+        printf("Unknown branch! Check your input.\n");
+        return 1;
+    }
+
+
+    FILE *currentb = fopen(CURRENT_BRANCH, "r");
+    char currentbranch[MAX_NAME_SIZE];
+    fscanf(currentb, "%[^\n]s", currentbranch);
+    fclose(currentb);
+
+
+    char currentbranchpath[MAX_ADDRESS_SIZE];
+    sprintf(currentbranchpath, ".dambiz/branches/%s/commits", currentbranch);
+    DIR *cbranch = opendir(currentbranchpath);
+    int HC = FindHead(cbranch);
+
+
+    char headcommitpath[MAX_ADDRESS_SIZE];
+    sprintf(headcommitpath, "%s/%d", currentbranchpath, HC);
+
+    if (check_addfolder(".", headcommitpath) == 1) {
+        printf("You can not checkout because there are changed files that are not committed!\n");
+        return 1;
+    }
+
+    currentb = fopen(CURRENT_BRANCH, "w");
+    fprintf(currentb, "%s\n", argv[2]);
+    fclose(currentb);
+    printf("Checkout ran successfully!\n");
+}
+
+
