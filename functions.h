@@ -12,8 +12,6 @@
 #include "functions.c"
 
 
-
-
 int run_config(int argc, char **argv);
 
 int run_init(int argc, char **argv);
@@ -24,7 +22,7 @@ void create_essentials();
 
 int run_add(int argc, char **argv);
 
-int directory_search(DIR* current, char name[]);
+int directory_search(DIR *current, char name[]);
 
 int is_identical(char address1[], char address2[]);
 
@@ -42,10 +40,11 @@ int run_commit(int argc, char **argv);
 
 int EmptyFolderCheck(DIR *checkingfolder);
 
+int run_log(int argc, char **argv);
 
-int run_branch(int argc, char** argv);
+int run_branch(int argc, char **argv);
 
-void Finding_lastline(FILE *given_file, char* str);
+void Finding_lastline(FILE *given_file, char *str);
 
 
 #ifndef BP_PROJECT_FUNCTIONS_H
