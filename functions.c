@@ -532,38 +532,60 @@ int run_commit(int argc, char **argv) {
         if ((currentbranch = fopen(".dambiz/branches/currentbranch.txt", "r")) == NULL) {
             printf("WTAF\n");
         }
-
-
-        FILE *counter = fopen(".dambiz/branches/commitcounter.txt", "r");
-        FILE *commitslog = fopen(".dambiz/tracks/commitlog.txt", "a");
-        int commitcounter;
-        char path[MAX_ADDRESS_SIZE];
-        fscanf(counter, "%d", &commitcounter);
         char current[MAX_ADDRESS_SIZE];
         fscanf(currentbranch, "%[^\n]s", current);
+        fclose(currentbranch);
+
+        FILE *counter = fopen(".dambiz/branches/commitcounter.txt", "r");
+        int commitcounter;
+        fscanf(counter, "%d", &commitcounter);
         commitcounter++;
         fclose(counter);
-        fprintf(commitslog, ".dambiz/branches/%s/commits/%d\n", current, commitcounter);
         counter = fopen(".dambiz/branches/commitcounter.txt", "w");
         fprintf(counter, "%d", commitcounter);
-        fclose(currentbranch);
         fclose(counter);
-        fclose(commitslog);
+
+        char path[MAX_ADDRESS_SIZE];
         sprintf(path, ".dambiz/branches/%s/commits/%d", current, commitcounter);
+
+
         if (mkdir(path, 0755) != 0) {
-            perror("oops!");
+            perror("oops!\n");
         }
+
+
+        FILE *commitslog;
+        FILE *copylog = fopen(".dambiz/tracks/commitlog.txt", "r");
+        if(commitcounter != 1){
+            char source[MAX_ADDRESS_SIZE];
+            Finding_lastline(copylog, source);
+            char copy_command[MAX_FILE_SIZE];
+            sprintf(copy_command, "cp -r %s/* %s/", source, path);
+            system(copy_command);
+        }
+        commitslog = fopen(".dambiz/tracks/commitlog.txt", "a");
+        fprintf(commitslog, ".dambiz/branches/%s/commits/%d\n", current, commitcounter);
+        fclose(commitslog);
+
         char command[MAX_ADDRESS_SIZE];
         sprintf(command, "mv .dambiz/staging/* %s/", path);
         system(command);
-        char time_path[MAX_FILE_SIZE];
+
+
+        char time_path[MAX_ADDRESS_SIZE];
         char commitlog[MAX_ADDRESS_SIZE];
+        char commitauthor[MAX_ADDRESS_SIZE];
         sprintf(commitlog, "%s/log.txt", path);
         sprintf(time_path, "%s/committime.txt", path);
-        strcat(path, "/comitmessage.txt");
+        sprintf(commitauthor, "%s/author.txt", path);
+        strcat(path, "/commitmessage.txt");
+
+
         FILE *commitmessage = fopen(path, "w");
-        fprintf(commitmessage, "%s", argv[3]);
+        fprintf(commitmessage, "%s\n", argv[3]);
         fclose(commitmessage);
+
+
         time_t currenttime;
         struct tm *ptr_time;
         char mytime[50];
@@ -572,14 +594,21 @@ int run_commit(int argc, char **argv) {
         if (strftime(mytime, 50, "%Y.%m.%d %A - %H:%M:%S", ptr_time) == 0) {
             perror("Couldn't prepare time formatted string\n");
         }
+
+
+        FILE *comauthor = fopen(commitauthor, "w");
         FILE *committime = fopen(time_path, "w");
         fprintf(committime, "%s", mytime);
         fclose(committime);
+
+
         FILE *log = fopen(commitlog, "w");
         char author[MAX_NAME_SIZE];
         FILE *user = fopen(".dambiz/user/localname.txt", "r");
         fscanf(user, "%[^\r]s", author);
         fclose(user);
+        fprintf(comauthor, "%s", author);
+        fclose(comauthor);
         fprintf(log,
                 "************************************************************************************************************************************************************************************************************\nCommited at:     %s\nCommit message:     %s\nCommited by:     %s\nCommit ID:     %d\nBranch:     %s\n%d File(s) were commited!\n************************************************************************************************************************************************************************************************************\n",
                 mytime, argv[3], author, commitcounter, current, commiting_files);
@@ -658,13 +687,13 @@ int run_log(int argc, char **argv) {
             printf("%s\n\n", logcontent);
             fclose(currentlog);
         }
-    } else if((argc == 4) && strcmp(argv[2] , "-n") == 0){
+    } else if ((argc == 4) && strcmp(argv[2], "-n") == 0) {
         int logcount = atoi(argv[3]);
-        if (logcount > countoflog){
+        if (logcount > countoflog) {
             logcount = countoflog;
         }
         printf("\n\n");
-        for (int i = (countoflog - 1); i > (countoflog - 1) - logcount ; i--) {
+        for (int i = (countoflog - 1); i > (countoflog - 1) - logcount; i--) {
             char path[MAX_ADDRESS_SIZE];
             sprintf(path, "%s/log.txt", logs[i]);
             FILE *currentlog = fopen(path, "r");
@@ -673,22 +702,84 @@ int run_log(int argc, char **argv) {
             printf("%s\n\n", logcontent);
             fclose(currentlog);
         }
-    }else if((argc == 4) && strcmp(argv[2] , "-branch") == 0){
+    } else if ((argc == 4) && strcmp(argv[2], "-branch") == 0) {
         DIR *branches = opendir(".dambiz/branches");
-        if (directory_search(branches, argv[3]) == 0){
+        if (directory_search(branches, argv[3]) == 0) {
             printf("Unknown branch! check your inputs.\n");
             return 1;
         }
         printf("\n\n");
         int counter = 0;
-        for (int i = (countoflog - 1); i >= 0 ; i--) {
+        for (int i = (countoflog - 1); i >= 0; i--) {
             char path[MAX_ADDRESS_SIZE];
             sprintf(path, "%s/log.txt", logs[i]);
-            if (strstr(path, argv[3]) == NULL){
+            if (strstr(path, argv[3]) == NULL) {
                 continue;
             }
             int branchpart = strstr(path, argv[3]) - path;
-            if (path[branchpart - 1] != '/' || path[branchpart + strlen(argv[3])] != '/'){
+            if (path[branchpart - 1] != '/' || path[branchpart + strlen(argv[3])] != '/') {
+                continue;
+            }
+            FILE *currentlog = fopen(path, "r");
+            char logcontent[MAX_FILE_SIZE];
+            fscanf(currentlog, "%[^\r]s", logcontent);
+            printf("%s\n\n", logcontent);
+            fclose(currentlog);
+            counter++;
+        }
+        if (!counter) {
+            printf("No commits available in this branch!\n\n\n");
+        }
+    } else if ((argc == 4) && strcmp(argv[2], "-author") == 0) {
+        printf("\n\n");
+        int counter = 0;
+        for (int i = (countoflog - 1); i >= 0; i--) {
+            char path[MAX_ADDRESS_SIZE];
+            char author_path[MAX_ADDRESS_SIZE];
+            sprintf(path, "%s/log.txt", logs[i]);
+            sprintf(author_path, "%s/author.txt", logs[i]);
+            FILE *author = fopen(author_path, "r");
+            char name[MAX_NAME_SIZE];
+            fscanf(author, "%[^\r]s", name);
+            if (strcmp(name, argv[3]) != 0) {
+                continue;
+            }
+            FILE *currentlog = fopen(path, "r");
+            char logcontent[MAX_FILE_SIZE];
+            fscanf(currentlog, "%[^\r]s", logcontent);
+            printf("%s\n\n", logcontent);
+            fclose(currentlog);
+            counter++;
+        }
+        if (!counter) {
+            printf("No commits available with this author!\n\n\n");
+        }
+    }else if((argc == 4) && strcmp(argv[2] , "-search") == 0){
+        printf("\n\n");
+        int counter = 0;
+        char words[20][MAX_NAME_SIZE];
+        char *word = strtok(argv[3], " ");
+        int countofwords = 0;
+        while (word != NULL){
+            strcpy(words[countofwords++], word);
+            word = strtok(NULL, " ");
+        }
+        for (int i = (countoflog - 1); i >= 0 ; i--) {
+            char path[MAX_ADDRESS_SIZE];
+            char message_path[MAX_ADDRESS_SIZE];
+            sprintf(path, "%s/log.txt", logs[i]);
+            sprintf(message_path, "%s/commitmessage.txt", logs[i]);
+            FILE *message = fopen(message_path, "r");
+            char commitmessage[MAX_NAME_SIZE];
+            fscanf(message, "%[^\r]s", commitmessage);
+            int found = 0;
+            for (int j = 0; j < countofwords; j++){
+                if (strstr(commitmessage, words[j]) != NULL){
+                    found++;
+                    break;
+                }
+            }
+            if (!found){
                 continue;
             }
             FILE *currentlog = fopen(path, "r");
@@ -699,7 +790,7 @@ int run_log(int argc, char **argv) {
             counter++;
         }
         if (!counter){
-            printf("No commits available in this branch!\n\n\n");
+            printf("No commits available with this author!\n\n\n");
         }
     }
 }
