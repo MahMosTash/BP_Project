@@ -656,6 +656,7 @@ int run_log(int argc, char **argv) {
             char logcontent[MAX_FILE_SIZE];
             fscanf(currentlog, "%[^\r]s", logcontent);
             printf("%s\n\n", logcontent);
+            fclose(currentlog);
         }
     } else if((argc == 4) && strcmp(argv[2] , "-n") == 0){
         int logcount = atoi(argv[3]);
@@ -670,6 +671,35 @@ int run_log(int argc, char **argv) {
             char logcontent[MAX_FILE_SIZE];
             fscanf(currentlog, "%[^\r]s", logcontent);
             printf("%s\n\n", logcontent);
+            fclose(currentlog);
+        }
+    }else if((argc == 4) && strcmp(argv[2] , "-branch") == 0){
+        DIR *branches = opendir(".dambiz/branches");
+        if (directory_search(branches, argv[3]) == 0){
+            printf("Unknown branch! check your inputs.\n");
+            return 1;
+        }
+        printf("\n\n");
+        int counter = 0;
+        for (int i = (countoflog - 1); i >= 0 ; i--) {
+            char path[MAX_ADDRESS_SIZE];
+            sprintf(path, "%s/log.txt", logs[i]);
+            if (strstr(path, argv[3]) == NULL){
+                continue;
+            }
+            int branchpart = strstr(path, argv[3]) - path;
+            if (path[branchpart - 1] != '/' || path[branchpart + strlen(argv[3])] != '/'){
+                continue;
+            }
+            FILE *currentlog = fopen(path, "r");
+            char logcontent[MAX_FILE_SIZE];
+            fscanf(currentlog, "%[^\r]s", logcontent);
+            printf("%s\n\n", logcontent);
+            fclose(currentlog);
+            counter++;
+        }
+        if (!counter){
+            printf("No commits available in this branch!\n\n\n");
         }
     }
 }
