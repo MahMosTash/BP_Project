@@ -1,6 +1,5 @@
 #define GlobalName "/home/mahmostash/Desktop/BP_Project/user/globalname.txt"
 #define GlobalEmail "/home/mahmostash/Desktop/BP_Project/user/globalemail.txt"
-#define Temp "/home/mahmostash/Desktop/BP_Project/Temp/"
 #define Staging ".dambiz/staging"
 #define Addlog ".dambiz/tracks/addlog.txt"
 #define Branches ".dambiz/branches"
@@ -323,7 +322,7 @@ void redo() {
 int run_add(int argc, char **argv) {
     if (check_init() == 0) {
         perror("You have not initialized in this folder or its parents yet.");
-        return 1;
+        return 5;
     }
     if ((argc == 3) && strcmp(argv[2], "-redo") == 0) {
         redo();
@@ -580,11 +579,25 @@ int run_status(int argc, char **argv) {
                 if (check_addfolder(eachfile->d_name, folderinhead) == 1) {
                     Y = 'M';
                 }
+                struct stat permission1;
+                struct stat permission2;
+                stat(eachfile->d_name, &permission1);
+                stat(folderinhead, &permission2);
+                if(permission1.st_mode != permission2.st_mode){
+                    Y = 'T';
+                }
             } else {
                 char fileinhead[MAX_ADDRESS_SIZE];
                 sprintf(fileinhead, "%s/%s", headpath, eachfile->d_name);
                 if (is_identical(eachfile->d_name, fileinhead) == 0) {
                     Y = 'M';
+                }
+                struct stat permission1;
+                struct stat permission2;
+                stat(eachfile->d_name, &permission1);
+                stat(fileinhead, &permission2);
+                if(permission1.st_mode != permission2.st_mode){
+                    Y = 'T';
                 }
             }
             if (Y != 'N') {
@@ -672,6 +685,8 @@ int run_commit(int argc, char **argv) {
         if ((currentbranch = fopen(CURRENT_BRANCH, "r")) == NULL) {
             printf("WTAF\n");
         }
+
+
         char current[MAX_ADDRESS_SIZE];
         fscanf(currentbranch, "%[^\n]s", current);
         fclose(currentbranch);
@@ -1038,7 +1053,6 @@ int run_checkout(int argc, char **argv) {
         return 1;
     }
 
-
     DIR *WhereWeAre = opendir(".");
     struct dirent *myf;
     while ((myf = readdir(WhereWeAre)) != NULL) {
@@ -1048,7 +1062,6 @@ int run_checkout(int argc, char **argv) {
             system(command);
         }
     }
-
 
     if (isbranch) {
 
@@ -1077,7 +1090,8 @@ int run_checkout(int argc, char **argv) {
             }
         }
         printf("Checkout ran successfully!\n");
-    } else {
+    }
+    else {
         char commiting_add[MAX_ADDRESS_SIZE];
         if (strcmp(argv[2], "HEAD") == 0 || strncmp(argv[2], "HEAD-", 5) == 0) {
             char commitpath[MAX_ADDRESS_SIZE];
@@ -1106,7 +1120,7 @@ int run_checkout(int argc, char **argv) {
                     strcpy(commiting_add, log);
                     break;
                 }
-                strtok(NULL, "\n");
+                log = strtok(NULL, "\n");
             }
         }
 
@@ -1174,4 +1188,188 @@ int run_shortcut(int argc, char **argv) {
         system(command);
         printf("Short cut has removed successfully!\n");
     }
+}
+
+
+int run_revert(int argc, char**argv){
+    if (check_init() == 0) {
+        perror("You have not initialized in this folder or its parents yet.");
+        return 1;
+    }
+
+    int ID;
+    char newmessage[MAX_ADDRESS_SIZE] = "";
+
+    bool flag = false;
+    int X = -1;
+    if ((argc == 3) || ((argc == 5) && strcmp(argv[2], "-m") == 0)){
+        flag = true;
+        ID = atoi(argv[argc - 1]);
+        if (strncmp(argv[argc - 1], "HEAD-", 5) == 0){
+            char x[5];
+            strcpy(x, argv[argc - 1] + 5);
+            X = atoi(x);
+            FILE *counter = fopen(".dambiz/branches/commitcounter.txt", "r");
+            fscanf(counter, "%d", &ID);
+            fclose(counter);
+            ID -= X;
+            if (ID < 0){
+                printf("WTF Bro you don't have this commit!\n");
+                return 1;
+            }
+        }
+        else if (ID <= 0){
+            printf("Invalid ID! Check your input.\n");
+            return 1;
+        }
+        if (argc == 5){
+            strcpy(newmessage, argv[3]);
+        }
+    }
+    else if(strcmp(argv[2], "-n") == 0){
+        if (argc == 4){
+            ID = atoi(argv[3]);
+            if (ID == 0){
+                printf("Invalid ID! Check your input.\n");
+                return 1;
+            }
+        } else{
+            FILE *counter = fopen(".dambiz/branches/commitcounter.txt", "r");
+            fscanf(counter, "%d", &ID);
+            fclose(counter);
+        }
+    }
+    FILE *commitlog = fopen(".dambiz/tracks/commitlog.txt", "r");
+    char content[MAX_FILE_SIZE];
+    fscanf(commitlog, "%[^\r]s", content);
+    char logs[20][MAX_ADDRESS_SIZE];
+    char *log = strtok(content, "\n");
+    int logcount = 0;
+    while (log != NULL){
+        strcpy(logs[logcount++], log);
+        log = strtok(NULL, "\n");
+    }
+    char commitpath[MAX_ADDRESS_SIZE];
+    char currentID[5];
+    sprintf(currentID, "%d", ID);
+    for (int i = 0; i< logcount; i++){
+        if (strstr(logs[i], currentID)){
+            strcpy(commitpath, logs[ID - 1]);
+            break;
+        }
+    }
+
+    if(strlen(newmessage) == 0){
+        char messagepath[MAX_ADDRESS_SIZE];
+        sprintf(messagepath, "%s/commitmessage.txt", commitpath);
+        FILE *lastmessage = fopen(messagepath, "r");
+        fscanf(lastmessage, "%[^\n]s", newmessage);
+        fclose(lastmessage);
+    }
+
+    if (flag){
+        FILE *counter = fopen(".dambiz/branches/commitcounter.txt", "r");
+        int commitcounter;
+        fscanf(counter, "%d", &commitcounter);
+        commitcounter++;
+        fclose(counter);
+        counter = fopen(".dambiz/branches/commitcounter.txt", "w");
+        fprintf(counter, "%d", commitcounter);
+        fclose(counter);
+
+        FILE *currentbranch;
+        if ((currentbranch = fopen(CURRENT_BRANCH, "r")) == NULL) {
+            printf("WTAF\n");
+        }
+
+        char current[MAX_ADDRESS_SIZE];
+        fscanf(currentbranch, "%[^\n]s", current);
+        fclose(currentbranch);
+
+
+        char path[MAX_ADDRESS_SIZE];
+        sprintf(path, ".dambiz/branches/%s/commits/%d", current, commitcounter);
+
+
+        if (mkdir(path, 0755) != 0) {
+            perror("oops!\n");
+        }
+
+        char copy_command[MAX_FILE_SIZE];
+        sprintf(copy_command, "cp -r %s/* %s/", commitpath, path);
+        system(copy_command);
+
+        char time_path[MAX_ADDRESS_SIZE];
+        char ncommitlog[MAX_ADDRESS_SIZE];
+        char commitauthor[MAX_ADDRESS_SIZE];
+        sprintf(ncommitlog, "%s/log.txt", path);
+        sprintf(time_path, "%s/committime.txt", path);
+        sprintf(commitauthor, "%s/author.txt", path);
+        strcat(path, "/commitmessage.txt");
+
+
+        FILE *commitmessage = fopen(path, "w");
+        fprintf(commitmessage, "%s\n", newmessage);
+        fclose(commitmessage);
+
+
+        time_t currenttime;
+        struct tm *ptr_time;
+        char mytime[50];
+        char savetime[50];
+        time(&currenttime);
+        ptr_time = localtime(&currenttime);
+        if (strftime(mytime, 50, "%A %Y.%m.%d - %H:%M:%S", ptr_time) == 0) {
+            perror("Couldn't prepare time formatted string\n");
+        }
+        if (strftime(savetime, 50, "%s", ptr_time) == 0) {
+            perror("Couldn't prepare time formatted string\n");
+        }
+
+
+        FILE *comauthor = fopen(commitauthor, "w");
+        FILE *committime = fopen(time_path, "w");
+        fprintf(committime, "%s", savetime);
+        fclose(committime);
+
+
+        FILE *nlog = fopen(ncommitlog, "w");
+        char author[MAX_NAME_SIZE];
+        FILE *user = fopen(".dambiz/user/localname.txt", "r");
+        fscanf(user, "%[^\r]s", author);
+        fclose(user);
+        fprintf(comauthor, "%s", author);
+        fclose(comauthor);
+        fprintf(nlog,
+                "************************************************************************************************************************************************************************************************************\nCommited at:     %s\nCommit message:     %s\nCommited by:     %s\nCommit ID:     %d\nBranch:     %s\n0 File(s) were commited!\n************************************************************************************************************************************************************************************************************\n",
+                mytime, newmessage, author, commitcounter, current);
+        printf("Commit ID:   %d\nCommit Message:   %s\nCommitting Time:   %s\n", commitcounter, newmessage,
+               mytime);
+    }
+
+    DIR *WhereWeAre = opendir(".");
+    struct dirent *myf;
+    while ((myf = readdir(WhereWeAre)) != NULL) {
+        if (strncmp(myf->d_name, ".", 1) != 0) {
+            char command[MAX_ADDRESS_SIZE];
+            sprintf(command, "rm -r %s", myf->d_name);
+            system(command);
+        }
+    }
+
+    DIR *HeadCommit = opendir(commitpath);
+    struct dirent *cf;
+    while ((cf = readdir(HeadCommit)) != NULL) {
+        if ((strncmp(cf->d_name, ".", 1) != 0) && (strcmp(cf->d_name, "author.txt") != 0) &&
+            (strcmp(cf->d_name, "commitmessage.txt") != 0) && (strcmp(cf->d_name, "committime.txt") != 0) &&
+            (strcmp(cf->d_name, "log.txt") != 0)) {
+            char command[MAX_ADDRESS_SIZE];
+            sprintf(command, "cp -r %s/%s .", commitpath, cf->d_name);
+            printf("%s\n", command);
+            system(command);
+        }
+    }
+    printf("Revert ran successfully!\n");
+
+
 }

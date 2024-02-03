@@ -18,10 +18,11 @@ int main(int argc, char **argv) {
         }
     } else if (strcmp(argv[1], "add") == 0) {
         if (argc > 2) {
-            run_add(argc, argv);
-            FILE *addlog = fopen(Addlog, "a");
-            fprintf(addlog, "\n");
-            fclose(addlog);
+            if(run_add(argc, argv) != 5) {
+                FILE *addlog = fopen(Addlog, "a");
+                fprintf(addlog, "\n");
+                fclose(addlog);
+            }
         } else {
             printf("Invalid Command!\n");
         }
@@ -67,6 +68,12 @@ int main(int argc, char **argv) {
     } else if ((strcmp(argv[1], "set") == 0) || (strcmp(argv[1], "replace") == 0) || (strcmp(argv[1], "remove") == 0)) {
         if (argc < 7) {
             run_shortcut(argc, argv);
+        } else {
+            printf("Invalid Command!\n");
+        }
+    }else if (strcmp(argv[1], "revert") == 0) {
+        if (argc < 6) {
+            run_revert(argc, argv);
         } else {
             printf("Invalid Command!\n");
         }

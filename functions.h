@@ -75,6 +75,7 @@ int run_checkout(int argc, char **argv);
 
 int run_shortcut(int argc, char **argv);
 
+int run_revert(int argc, char**argv);
 
 #ifndef BP_PROJECT_FUNCTIONS_H
 #define BP_PROJECT_FUNCTIONS_H
