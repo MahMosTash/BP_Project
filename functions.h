@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <locale.h>
+#include <ctype.h>
 
 #include "functions.c"
 
@@ -44,7 +45,10 @@ int run_log(int argc, char **argv);
 
 int run_branch(int argc, char **argv);
 
-void Finding_lastline(FILE *given_file, char *str, char* currentbranch);
+void Finding_lastline(FILE *given_file, char *str, char* current_branch);
+
+void Finding_nlastline(FILE *given_file, char *str, char* current_branch, int number);
+
 
 int FindHead(DIR * branch);
 

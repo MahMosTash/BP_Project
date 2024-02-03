@@ -416,11 +416,39 @@ void Finding_lastline(FILE *given_file, char *str, char *current_branch) {
     }
     for (int i = (countofline - 1); i >= 0; i--) {
         if (strstr(lines[i], current_branch)) {
-            strcpy(str, lines[countofline - 1]);
+            strcpy(str, lines[i]);
             return;
         }
     }
 }
+
+
+
+void Finding_nlastline(FILE *given_file, char *str, char* current_branch, int number){
+    char content[MAX_FILE_SIZE];
+    char content_copy[MAX_FILE_SIZE];
+    char lines[20][MAX_FILE_SIZE];
+    fscanf(given_file, "%[^\r]s", content);
+    fclose(given_file);
+    strcpy(content_copy, content);
+    char *currentline = strtok(content_copy, "\n");
+    int countofline = 0;
+    while (currentline != NULL) {
+        strcpy(lines[countofline++], currentline);
+        currentline = strtok(NULL, "\n");
+    }
+    for (int i = (countofline - 1); i >= 0; i--) {
+        if (strstr(lines[i], current_branch)) {
+            if (number == 0) {
+                strcpy(str, lines[i]);
+                return;
+            }
+            number--;
+        }
+    }
+}
+
+
 
 int run_reset(int argc, char **argv) {
     if (check_init() == 0) {
@@ -597,7 +625,9 @@ int run_commit(int argc, char **argv) {
         fclose(commitslog);
 
         char command[MAX_ADDRESS_SIZE];
-        sprintf(command, "mv .dambiz/staging/* %s/", path);
+        sprintf(command, "cp -r .dambiz/staging/* %s/", path);
+        system(command);
+        strcpy(command, "rm -r .dambiz/staging/*");
         system(command);
 
 
@@ -880,13 +910,25 @@ int run_checkout(int argc, char **argv) {
         return 1;
     }
 
+    FILE *counter = fopen(".dambiz/branches/commitcounter.txt", "r");
+    int commitcounter;
+    fscanf(counter, "%d", &commitcounter);
+    bool isbranch = true;
 
     DIR *branches = opendir(Branches);
-    if (directory_search(branches, argv[2]) == 0) {
+    if (atoi(argv[2]) != 0) {
+        isbranch = false;
+        if (atoi(argv[2]) > commitcounter) {
+            printf("Unknown Commit ID! Check your input.\n");
+            return 1;
+        }
+    } else if (strcmp(argv[2], "HEAD") == 0 || strncmp(argv[2], "HEAD-", 5) == 0) {
+        isbranch = false;
+    } else if (directory_search(branches, argv[2]) == 0) {
         printf("Unknown branch! Check your input.\n");
         return 1;
-    }
 
+    }
     FILE *currentb = fopen(CURRENT_BRANCH, "r");
     char currentbranch[MAX_NAME_SIZE];
     fscanf(currentb, "%[^\n]s", currentbranch);
@@ -901,23 +943,10 @@ int run_checkout(int argc, char **argv) {
     sprintf(headcommitpath, "%s/%d", currentbranchpath, HC);
 
 
-    char newbcommitpath[MAX_ADDRESS_SIZE];
-    sprintf(newbcommitpath, ".dambiz/branches/%s/commits", argv[2]);
-    DIR *nbranch = opendir(newbcommitpath);
-    int HN = FindHead(nbranch);
-    char newbranchcommit[MAX_ADDRESS_SIZE];
-    sprintf(newbranchcommit, "%s/%d", currentbranchpath, HN);
-
-
     if (check_addfolder(".", headcommitpath) == 1) {
         printf("You can not checkout because there are changed files that are not committed!\n");
         return 1;
     }
-
-
-    currentb = fopen(CURRENT_BRANCH, "w");
-    fprintf(currentb, "%s\n", argv[2]);
-    fclose(currentb);
 
 
     DIR *WhereWeAre = opendir(".");
@@ -930,17 +959,82 @@ int run_checkout(int argc, char **argv) {
         }
     }
 
-    DIR *HeadCommit = opendir(newbranchcommit);
-    struct dirent *cf;
-    while ((cf = readdir(HeadCommit)) != NULL) {
-        if ((strncmp(cf->d_name, ".", 1) != 0) && (strcmp(cf->d_name, "author.txt") != 0) && (strcmp(cf->d_name, "commitmessage.txt") != 0) && (strcmp(cf->d_name, "committime.txt") != 0) && (strcmp(cf->d_name, "log.txt") != 0)) {
-            char command[MAX_ADDRESS_SIZE];
-            sprintf(command, "cp -r %s/%s .", newbranchcommit, cf->d_name);
-            system(command);
-        }
-    }
 
-    printf("Checkout ran successfully!\n");
+    if (isbranch) {
+
+
+        char newbcommitpath[MAX_ADDRESS_SIZE];
+        sprintf(newbcommitpath, ".dambiz/branches/%s/commits", argv[2]);
+        DIR *nbranch = opendir(newbcommitpath);
+        int HN = FindHead(nbranch);
+        char newbranchcommit[MAX_ADDRESS_SIZE];
+        sprintf(newbranchcommit, "%s/%d", newbcommitpath, HN);
+
+        currentb = fopen(CURRENT_BRANCH, "w");
+        fprintf(currentb, "%s\n", argv[2]);
+        fclose(currentb);
+
+
+        DIR *HeadCommit = opendir(newbranchcommit);
+        struct dirent *cf;
+        while ((cf = readdir(HeadCommit)) != NULL) {
+            if ((strncmp(cf->d_name, ".", 1) != 0) && (strcmp(cf->d_name, "author.txt") != 0) &&
+                (strcmp(cf->d_name, "commitmessage.txt") != 0) && (strcmp(cf->d_name, "committime.txt") != 0) &&
+                (strcmp(cf->d_name, "log.txt") != 0)) {
+                char command[MAX_ADDRESS_SIZE];
+                sprintf(command, "cp -r %s/%s .", newbranchcommit, cf->d_name);
+                system(command);
+            }
+        }
+        printf("Checkout ran successfully!\n");
+    } else {
+        char commiting_add[MAX_ADDRESS_SIZE];
+        if (strcmp(argv[2], "HEAD") == 0 || strncmp(argv[2], "HEAD-", 5) == 0) {
+            char commitpath[MAX_ADDRESS_SIZE];
+            char current[MAX_NAME_SIZE];
+            char headaddress[MAX_ADDRESS_SIZE];
+            FILE *commitlog = fopen(".dambiz/tracks/commitlog.txt", "r");
+            FILE *currentbranch = fopen(CURRENT_BRANCH, "r");
+            fscanf(currentbranch, "%[^\n]s", current);
+            if (strcmp(argv[2], "HEAD") == 0) {
+                Finding_lastline(commitlog, headaddress, current);
+                strcpy(commiting_add, headaddress);
+            } else{
+                char number[5];
+                strcpy(number, argv[2] + 5);
+                int n = atoi(number);
+                Finding_nlastline(commitlog, headaddress, current, n);
+                strcpy(commiting_add, headaddress);
+            }
+        } else {
+            FILE *commitlog = fopen(".dambiz/tracks/commitlog.txt", "r");
+            char content[MAX_FILE_SIZE];
+            fscanf(commitlog, "%[^\r]s", content);
+            char *log = strtok(content, "\n");
+            while (log != NULL) {
+                if (strstr(log, argv[2])) {
+                    strcpy(commiting_add, log);
+                    break;
+                }
+                strtok(NULL, "\n");
+            }
+        }
+
+
+
+        DIR *HeadCommit = opendir(commiting_add);
+        struct dirent *cf;
+        while ((cf = readdir(HeadCommit)) != NULL) {
+            if ((strncmp(cf->d_name, ".", 1) != 0) && (strcmp(cf->d_name, "author.txt") != 0) &&
+                (strcmp(cf->d_name, "commitmessage.txt") != 0) && (strcmp(cf->d_name, "committime.txt") != 0) &&
+                (strcmp(cf->d_name, "log.txt") != 0)) {
+                char command[MAX_ADDRESS_SIZE];
+                sprintf(command, "cp -r %s/%s .", commiting_add, cf->d_name);
+                system(command);
+            }
+        }
+        printf("Checkout ran successfully!\n");
+    }
 }
 
 
