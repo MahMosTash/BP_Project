@@ -15,48 +15,62 @@
 
 int run_config(int argc, char **argv);
 
+
 int run_init(int argc, char **argv);
+
 
 int check_init();
 
+
 void create_essentials();
+
 
 int run_add(int argc, char **argv);
 
+
 int directory_search(DIR *current, char name[]);
+
 
 int is_identical(char address1[], char address2[]);
 
+
 int check_addfolder(char folderaddress[], char stageaddress[]);
+
+
+int FindHead(DIR *branch);
+
 
 int run_reset(int argc, char **argv);
 
+
 void redo();
+
 
 void addn();
 
+
 int run_status(int argc, char **argv);
+
 
 int run_commit(int argc, char **argv);
 
+
 int EmptyFolderCheck(DIR *checkingfolder);
+
 
 int run_log(int argc, char **argv);
 
+
 int run_branch(int argc, char **argv);
 
-void Finding_lastline(FILE *given_file, char *str, char* current_branch);
 
-void Finding_nlastline(FILE *given_file, char *str, char* current_branch, int number);
+void Finding_lastline(FILE *given_file, char *str, char *current_branch);
 
 
-int FindHead(DIR * branch);
+void Finding_nlastline(FILE *given_file, char *str, char *current_branch, int number);
 
 
 int run_checkout(int argc, char **argv);
-
-
-
 
 
 #ifndef BP_PROJECT_FUNCTIONS_H

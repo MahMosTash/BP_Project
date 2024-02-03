@@ -146,6 +146,20 @@ void create_essentials() {
 }
 
 
+int FindHead(DIR *branch) {
+    int max = 0;
+    struct dirent *current_commit;
+    while ((current_commit = readdir(branch)) != NULL) {
+        if (strstr(current_commit->d_name, ".") == NULL) {
+            if (atoi(current_commit->d_name) > max) {
+                max = atoi(current_commit->d_name);
+            }
+        }
+    }
+    return max;
+}
+
+
 int run_init(int argc, char **argv) {
     char cwd[MAX_NAME_SIZE];
 
@@ -423,8 +437,7 @@ void Finding_lastline(FILE *given_file, char *str, char *current_branch) {
 }
 
 
-
-void Finding_nlastline(FILE *given_file, char *str, char* current_branch, int number){
+void Finding_nlastline(FILE *given_file, char *str, char *current_branch, int number) {
     char content[MAX_FILE_SIZE];
     char content_copy[MAX_FILE_SIZE];
     char lines[20][MAX_FILE_SIZE];
@@ -447,7 +460,6 @@ void Finding_nlastline(FILE *given_file, char *str, char* current_branch, int nu
         }
     }
 }
-
 
 
 int run_reset(int argc, char **argv) {
@@ -531,7 +543,79 @@ int run_reset(int argc, char **argv) {
 
 
 int run_status(int argc, char **argv) {
+    if (check_init() == 0) {
+        perror("You have not initialized in this folder or its parents yet.");
+        return 1;
+    }
+    DIR *repository = opendir(".");
+    DIR *stage = opendir(Staging);
 
+    FILE *curb = fopen(CURRENT_BRANCH, "r");
+    char currentbranch[MAX_NAME_SIZE];
+    fscanf(curb, "%[^\n]s", currentbranch);
+
+    char branchpath[MAX_ADDRESS_SIZE];
+
+    sprintf(branchpath, ".dambiz/branches/%s/commits", currentbranch);
+
+    DIR *currb = opendir(branchpath);
+    int head = FindHead(currb);
+
+    char headpath[MAX_ADDRESS_SIZE];
+    sprintf(headpath, ".dambiz/branches/%s/commits/%d", currentbranch, head);
+
+    DIR *HEAD;
+    char Y;
+    struct dirent *eachfile;
+    while ((eachfile = readdir(repository)) != NULL) {
+        HEAD = opendir(headpath);
+        Y = 'N';
+        if (strncmp(eachfile->d_name, ".", 1) != 0) {
+            if (directory_search(HEAD, eachfile->d_name) == 0) {
+                Y = 'A';
+            } else if (eachfile->d_type == DT_DIR) {
+                char folderinhead[MAX_ADDRESS_SIZE];
+                sprintf(folderinhead, "%s/%s", headpath, eachfile->d_name);
+                if (check_addfolder(eachfile->d_name, folderinhead) == 1) {
+                    Y = 'M';
+                }
+            } else {
+                char fileinhead[MAX_ADDRESS_SIZE];
+                sprintf(fileinhead, "%s/%s", headpath, eachfile->d_name);
+                if (is_identical(eachfile->d_name, fileinhead) == 0) {
+                    Y = 'M';
+                }
+            }
+            if (Y != 'N') {
+                printf("%s: ", eachfile->d_name);
+                if (directory_search(stage, eachfile->d_name) == 1) {
+                    printf("+%c\n", Y);
+                } else {
+                    printf("-%c\n", Y);
+                }
+            }
+        }
+    }
+    stage = opendir(Staging);
+    HEAD = opendir(headpath);
+    struct dirent *deletecheck;
+    while ((deletecheck = readdir(HEAD)) != NULL) {
+        if (strncmp(deletecheck->d_name, ".", 1) != 0) {
+            repository = opendir(".");
+            if (directory_search(repository, deletecheck->d_name) == 0) {
+                if ((strncmp(deletecheck->d_name, ".", 1) != 0) && (strcmp(deletecheck->d_name, "author.txt") != 0) &&
+                    (strcmp(deletecheck->d_name, "commitmessage.txt") != 0) &&
+                    (strcmp(deletecheck->d_name, "committime.txt") != 0) &&
+                    (strcmp(deletecheck->d_name, "log.txt") != 0)) {
+                    if (directory_search(stage, deletecheck->d_name) == 1) {
+                        printf("%s: +D\n", deletecheck->d_name);
+                    } else {
+                        printf("%s: -D\n", deletecheck->d_name);
+                    }
+                }
+            }
+        }
+    }
 }
 
 
@@ -541,20 +625,6 @@ int EmptyFolderCheck(DIR *checkingfolder) {
         counter++;
     }
     return counter;
-}
-
-
-int FindHead(DIR *branch) {
-    int max = 0;
-    struct dirent *current_commit;
-    while ((current_commit = readdir(branch)) != NULL) {
-        if (strstr(current_commit->d_name, ".") == NULL) {
-            if (atoi(current_commit->d_name) > max) {
-                max = atoi(current_commit->d_name);
-            }
-        }
-    }
-    return max;
 }
 
 
@@ -676,7 +746,8 @@ int run_commit(int argc, char **argv) {
                 "************************************************************************************************************************************************************************************************************\nCommited at:     %s\nCommit message:     %s\nCommited by:     %s\nCommit ID:     %d\nBranch:     %s\n%d File(s) were commited!\n************************************************************************************************************************************************************************************************************\n",
                 mytime, argv[3], author, commitcounter, current, commiting_files);
         printf("%d Files commited successfully!\n\n\n", commiting_files);
-        printf("Commit ID:   %d\nCommit Message:   %s\nCommitting Time:   %s\n", commitcounter, argv[3], mytime);
+        printf("Commit ID:   %d\nCommit Message:   %s\nCommitting Time:   %s\n", commitcounter, argv[3],
+               mytime);
     } else {
         perror("Invalid Command!");
         return 1;
@@ -999,7 +1070,7 @@ int run_checkout(int argc, char **argv) {
             if (strcmp(argv[2], "HEAD") == 0) {
                 Finding_lastline(commitlog, headaddress, current);
                 strcpy(commiting_add, headaddress);
-            } else{
+            } else {
                 char number[5];
                 strcpy(number, argv[2] + 5);
                 int n = atoi(number);
@@ -1019,7 +1090,6 @@ int run_checkout(int argc, char **argv) {
                 strtok(NULL, "\n");
             }
         }
-
 
 
         DIR *HeadCommit = opendir(commiting_add);
