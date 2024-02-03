@@ -1,4 +1,5 @@
 #include "functions.h"
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         perror("Invalid Command!\n");
@@ -39,29 +40,33 @@ int main(int argc, char **argv) {
     } else if (strcmp(argv[1], "commit") == 0) {
         if (argc == 4) {
             run_commit(argc, argv);
-        } else if ((argc == 3) && strcmp(argv[2], "-m") == 0){
+        } else if ((argc == 3) && strcmp(argv[2], "-m") == 0) {
             printf("You can not commit without a commit message!\n");
-        }
-        else {
+        } else {
             printf("Invalid Command!\n");
         }
-    }else if (strcmp(argv[1], "log") == 0) {
+    } else if (strcmp(argv[1], "log") == 0) {
         if (argc < 5) {
             run_log(argc, argv);
-        }
-        else {
+        } else {
             printf("Invalid Command!\n");
         }
 
-    }else if (strcmp(argv[1], "branch") == 0) {
+    } else if (strcmp(argv[1], "branch") == 0) {
         if (argc < 4) {
             run_branch(argc, argv);
         } else {
             printf("Invalid Command!\n");
         }
-    }else if (strcmp(argv[1], "checkout") == 0) {
+    } else if (strcmp(argv[1], "checkout") == 0) {
         if (argc == 3) {
             run_checkout(argc, argv);
+        } else {
+            printf("Invalid Command!\n");
+        }
+    } else if ((strcmp(argv[1], "set") == 0) || (strcmp(argv[1], "replace") == 0) || (strcmp(argv[1], "remove") == 0)) {
+        if (argc < 7) {
+            run_shortcut(argc, argv);
         } else {
             printf("Invalid Command!\n");
         }

@@ -96,7 +96,8 @@ int check_init() {
 
 
 void create_essentials() {
-    if (mkdir(".dambiz/user", 0755) || mkdir(".dambiz/alias", 0755) || mkdir(".dambiz/branches", 0755) ||
+    if (mkdir(".dambiz/user", 0755) || mkdir(".dambiz/shortcuts", 0755) || mkdir(".dambiz/alias", 0755) ||
+        mkdir(".dambiz/branches", 0755) ||
         mkdir(".dambiz/staging", 0755) || mkdir(".dambiz/tracks", 0755) || mkdir(".dambiz/branches/master", 0755) ||
         mkdir(".dambiz/branches/master/commits", 0755)) {
         perror("Oops! Something bad happened!");
@@ -635,15 +636,33 @@ int run_commit(int argc, char **argv) {
     }
     int commiting_files;
 
-    if (strcmp(argv[2], "-m") == 0) {
+    if ((strcmp(argv[2], "-m") == 0) || (strcmp(argv[2], "-s") == 0)) {
+        char finalmessage[MAX_ADDRESS_SIZE];
+
         DIR *staging = opendir(Staging);
         if ((commiting_files = EmptyFolderCheck(staging)) == 0) {
             printf("No staging file to commit :(\n");
             return 1;
         }
 
+        if(strcmp(argv[2], "-s") == 0){
+            DIR *shortcuts = opendir(".dambiz/shortcuts");
+            char txtname[MAX_NAME_SIZE];
+            sprintf(txtname, "%s.txt", argv[3]);
+            if (directory_search(shortcuts, txtname) == 0){
+                printf("Invalid Shortcut! Check your input.\n");
+                return 1;
+            }
+            char shortcutpath[MAX_ADDRESS_SIZE];
+            sprintf(shortcutpath, ".dambiz/shortcuts/%s", txtname);
+            FILE *newshort = fopen(shortcutpath, "r");
+            fscanf(newshort, "%[^\n]s", finalmessage);
+        } else{
+            strcpy(finalmessage, argv[3]);
+        }
 
-        if (strlen(argv[argc - 1]) > 72) {
+
+        if (strlen(finalmessage) > 72) {
             printf("Your commit message is too long!\n");
             return 1;
         }
@@ -711,7 +730,7 @@ int run_commit(int argc, char **argv) {
 
 
         FILE *commitmessage = fopen(path, "w");
-        fprintf(commitmessage, "%s\n", argv[3]);
+        fprintf(commitmessage, "%s\n", finalmessage);
         fclose(commitmessage);
 
 
@@ -744,9 +763,9 @@ int run_commit(int argc, char **argv) {
         fclose(comauthor);
         fprintf(log,
                 "************************************************************************************************************************************************************************************************************\nCommited at:     %s\nCommit message:     %s\nCommited by:     %s\nCommit ID:     %d\nBranch:     %s\n%d File(s) were commited!\n************************************************************************************************************************************************************************************************************\n",
-                mytime, argv[3], author, commitcounter, current, commiting_files);
+                mytime, finalmessage, author, commitcounter, current, commiting_files);
         printf("%d Files commited successfully!\n\n\n", commiting_files);
-        printf("Commit ID:   %d\nCommit Message:   %s\nCommitting Time:   %s\n", commitcounter, argv[3],
+        printf("Commit ID:   %d\nCommit Message:   %s\nCommitting Time:   %s\n", commitcounter, finalmessage,
                mytime);
     } else {
         perror("Invalid Command!");
@@ -1108,3 +1127,51 @@ int run_checkout(int argc, char **argv) {
 }
 
 
+int run_shortcut(int argc, char **argv) {
+    if (strcmp(argv[1], "set") == 0) {
+        if((argc != 6) || (strcmp(argv[2], "-m") != 0) || (strcmp(argv[4], "-s") != 0)){
+            printf("Invalid Command!\n");
+            return 1;
+        }
+        char shortcutpath[MAX_ADDRESS_SIZE];
+        sprintf(shortcutpath, ".dambiz/shortcuts/%s.txt", argv[5]);
+        FILE *newshort = fopen(shortcutpath, "w");
+        fprintf(newshort, "%s\n", argv[3]);
+        fclose(newshort);
+        printf("Shortcut created successfully!\n");
+    } else if (strcmp(argv[1], "replace") == 0) {
+        if((argc != 6) || (strcmp(argv[2], "-m") != 0) || (strcmp(argv[4], "-s") != 0)){
+            printf("Invalid Command!\n");
+            return 1;
+        }
+        DIR *shortcuts = opendir(".dambiz/shortcuts");
+        char txtname[MAX_NAME_SIZE];
+        sprintf(txtname, "%s.txt", argv[5]);
+        if (directory_search(shortcuts, txtname) == 0){
+            printf("Invalid Shortcut! Check your input.\n");
+            return 1;
+        }
+        char shortcutpath[MAX_ADDRESS_SIZE];
+        sprintf(shortcutpath, ".dambiz/shortcuts/%s.txt", argv[5]);
+        FILE *replacedshort = fopen(shortcutpath, "w");
+        fprintf(replacedshort, "%s\n", argv[3]);
+        fclose(replacedshort);
+        printf("Shortcut replaced successfully!\n");
+    } else{
+        if((argc != 4) || (strcmp(argv[2], "-s") != 0)){
+            printf("Invalid Command!\n");
+            return 1;
+        }
+        DIR *shortcuts = opendir(".dambiz/shortcuts");
+        char txtname[MAX_NAME_SIZE];
+        sprintf(txtname, "%s.txt", argv[3]);
+        if (directory_search(shortcuts, txtname) == 0){
+            printf("Invalid Shortcut! Check your input.\n");
+            return 1;
+        }
+        char command[MAX_ADDRESS_SIZE];
+        sprintf(command, "rm -r .dambiz/shortcuts/%s.txt", argv[3]);
+        system(command);
+        printf("Short cut has removed successfully!\n");
+    }
+}

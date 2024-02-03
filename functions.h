@@ -73,6 +73,9 @@ void Finding_nlastline(FILE *given_file, char *str, char *current_branch, int nu
 int run_checkout(int argc, char **argv);
 
 
+int run_shortcut(int argc, char **argv);
+
+
 #ifndef BP_PROJECT_FUNCTIONS_H
 #define BP_PROJECT_FUNCTIONS_H
 
