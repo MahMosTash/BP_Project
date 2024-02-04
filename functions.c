@@ -4,6 +4,7 @@
 #define Addlog ".dambiz/tracks/addlog.txt"
 #define Branches ".dambiz/branches"
 #define CURRENT_BRANCH ".dambiz/branches/currentbranch.txt"
+#define Current_Commit ".dambiz/tracks/currentcommit.txt"
 #define MAX_FILE_SIZE 5000
 #define MAX_NAME_SIZE 100
 #define MAX_ADDRESS_SIZE 500
@@ -98,7 +99,7 @@ void create_essentials() {
     if (mkdir(".dambiz/user", 0755) || mkdir(".dambiz/shortcuts", 0755) || mkdir(".dambiz/alias", 0755) ||
         mkdir(".dambiz/branches", 0755) ||
         mkdir(".dambiz/staging", 0755) || mkdir(".dambiz/tracks", 0755) || mkdir(".dambiz/branches/master", 0755) ||
-        mkdir(".dambiz/branches/master/commits", 0755)) {
+        mkdir(".dambiz/branches/master/commits", 0755) || mkdir(".dambiz/tags", 0755)) {
         perror("Oops! Something bad happened!");
     }
     FILE *commit;
@@ -128,7 +129,8 @@ void create_essentials() {
         (localname = fopen(".dambiz/user/localname.txt", "w")) == NULL ||
         ((commit = fopen(".dambiz/branches/commitcounter.txt", "w")) == NULL) ||
         (branch = fopen(CURRENT_BRANCH, "w")) == NULL ||
-        (fopen(".dambiz/tracks/commitlog.txt", "w")) == NULL) {
+        ((fopen(".dambiz/tracks/commitlog.txt", "w")) == NULL) ||
+        (fopen(".dambiz/tracks/currentcommit.txt", "w") == NULL)) {
         perror("Oops! Something bad happened!");
     }
     fprintf(commit, "0\n");
@@ -563,6 +565,10 @@ int run_status(int argc, char **argv) {
 
     char headpath[MAX_ADDRESS_SIZE];
     sprintf(headpath, ".dambiz/branches/%s/commits/%d", currentbranch, head);
+    if (head == 0) {
+        printf("No commits available.\n");
+        return 1;
+    }
 
     DIR *HEAD;
     char Y;
@@ -583,7 +589,7 @@ int run_status(int argc, char **argv) {
                 struct stat permission2;
                 stat(eachfile->d_name, &permission1);
                 stat(folderinhead, &permission2);
-                if(permission1.st_mode != permission2.st_mode){
+                if (permission1.st_mode != permission2.st_mode) {
                     Y = 'T';
                 }
             } else {
@@ -596,7 +602,7 @@ int run_status(int argc, char **argv) {
                 struct stat permission2;
                 stat(eachfile->d_name, &permission1);
                 stat(fileinhead, &permission2);
-                if(permission1.st_mode != permission2.st_mode){
+                if (permission1.st_mode != permission2.st_mode) {
                     Y = 'T';
                 }
             }
@@ -658,11 +664,11 @@ int run_commit(int argc, char **argv) {
             return 1;
         }
 
-        if(strcmp(argv[2], "-s") == 0){
+        if (strcmp(argv[2], "-s") == 0) {
             DIR *shortcuts = opendir(".dambiz/shortcuts");
             char txtname[MAX_NAME_SIZE];
             sprintf(txtname, "%s.txt", argv[3]);
-            if (directory_search(shortcuts, txtname) == 0){
+            if (directory_search(shortcuts, txtname) == 0) {
                 printf("Invalid Shortcut! Check your input.\n");
                 return 1;
             }
@@ -670,7 +676,7 @@ int run_commit(int argc, char **argv) {
             sprintf(shortcutpath, ".dambiz/shortcuts/%s", txtname);
             FILE *newshort = fopen(shortcutpath, "r");
             fscanf(newshort, "%[^\n]s", finalmessage);
-        } else{
+        } else {
             strcpy(finalmessage, argv[3]);
         }
 
@@ -711,6 +717,11 @@ int run_commit(int argc, char **argv) {
 
         char headpath[MAX_ADDRESS_SIZE];
         sprintf(headpath, ".dambiz/branches/%s/commits/%d", current, head);
+
+
+        FILE *currentcommit = fopen(Current_Commit, "w");
+        fprintf(currentcommit, "%s", path);
+        fclose(currentcommit);
 
         if (mkdir(path, 0755) != 0) {
             perror("oops!\n");
@@ -800,13 +811,14 @@ int run_branch(int argc, char **argv) {
             printf("Branch name can not be used because it already exists!\n");
             return 1;
         }
-        char commitpath[MAX_ADDRESS_SIZE];
+        char commitpath[MAX_ADDRESS_SIZE] = "";
         char current[MAX_NAME_SIZE];
         FILE *commitlog = fopen(".dambiz/tracks/commitlog.txt", "r");
         FILE *currentbranch = fopen(CURRENT_BRANCH, "r");
         fscanf(currentbranch, "%[^\n]s", current);
 
-        Finding_lastline(commitlog, commitpath, current);
+        FILE *currentcommit = fopen(Current_Commit, "r");
+        fscanf(currentcommit, "%[^\n]s", commitpath);
         if (strlen(commitpath) == 0) {
             printf("Can not create a branch without committing!\n");
             return 1;
@@ -1040,12 +1052,10 @@ int run_checkout(int argc, char **argv) {
     fclose(currentb);
 
 
-    char currentbranchpath[MAX_ADDRESS_SIZE];
-    sprintf(currentbranchpath, ".dambiz/branches/%s/commits", currentbranch);
-    DIR *cbranch = opendir(currentbranchpath);
-    int HC = FindHead(cbranch);
     char headcommitpath[MAX_ADDRESS_SIZE];
-    sprintf(headcommitpath, "%s/%d", currentbranchpath, HC);
+    FILE *currentcommit = fopen(Current_Commit, "r");
+    fscanf(currentcommit, "%[^\n]s", headcommitpath);
+    fclose(currentcommit);
 
 
     if (check_addfolder(".", headcommitpath) == 1) {
@@ -1089,9 +1099,12 @@ int run_checkout(int argc, char **argv) {
                 system(command);
             }
         }
+        currentcommit = fopen(Current_Commit, "w");
+        fprintf(currentcommit, "%s\n", newbranchcommit);
+        fclose(currentcommit);
+
         printf("Checkout ran successfully!\n");
-    }
-    else {
+    } else {
         char commiting_add[MAX_ADDRESS_SIZE];
         if (strcmp(argv[2], "HEAD") == 0 || strncmp(argv[2], "HEAD-", 5) == 0) {
             char commitpath[MAX_ADDRESS_SIZE];
@@ -1136,6 +1149,10 @@ int run_checkout(int argc, char **argv) {
                 system(command);
             }
         }
+        currentcommit = fopen(Current_Commit, "w");
+        fprintf(currentcommit, "%s\n", commiting_add);
+        fclose(currentcommit);
+
         printf("Checkout ran successfully!\n");
     }
 }
@@ -1143,7 +1160,7 @@ int run_checkout(int argc, char **argv) {
 
 int run_shortcut(int argc, char **argv) {
     if (strcmp(argv[1], "set") == 0) {
-        if((argc != 6) || (strcmp(argv[2], "-m") != 0) || (strcmp(argv[4], "-s") != 0)){
+        if ((argc != 6) || (strcmp(argv[2], "-m") != 0) || (strcmp(argv[4], "-s") != 0)) {
             printf("Invalid Command!\n");
             return 1;
         }
@@ -1154,7 +1171,7 @@ int run_shortcut(int argc, char **argv) {
         fclose(newshort);
         printf("Shortcut created successfully!\n");
     } else if (strcmp(argv[1], "replace") == 0) {
-        if((argc != 6) || (strcmp(argv[2], "-m") != 0) || (strcmp(argv[4], "-s") != 0)){
+        if ((argc != 6) || (strcmp(argv[2], "-m") != 0) || (strcmp(argv[4], "-s") != 0)) {
             printf("Invalid Command!\n");
             return 1;
         }
@@ -1163,7 +1180,7 @@ int run_shortcut(int argc, char **argv) {
         char txtname[MAX_NAME_SIZE];
         sprintf(txtname, "%s.txt", argv[5]);
 
-        if (directory_search(shortcuts, txtname) == 0){
+        if (directory_search(shortcuts, txtname) == 0) {
             printf("Invalid Shortcut! Check your input.\n");
             return 1;
         }
@@ -1174,15 +1191,15 @@ int run_shortcut(int argc, char **argv) {
         fprintf(replacedshort, "%s\n", argv[3]);
         fclose(replacedshort);
         printf("Shortcut replaced successfully!\n");
-    } else{
-        if((argc != 4) || (strcmp(argv[2], "-s") != 0)){
+    } else {
+        if ((argc != 4) || (strcmp(argv[2], "-s") != 0)) {
             printf("Invalid Command!\n");
             return 1;
         }
         DIR *shortcuts = opendir(".dambiz/shortcuts");
         char txtname[MAX_NAME_SIZE];
         sprintf(txtname, "%s.txt", argv[3]);
-        if (directory_search(shortcuts, txtname) == 0){
+        if (directory_search(shortcuts, txtname) == 0) {
             printf("Invalid Shortcut! Check your input.\n");
             return 1;
         }
@@ -1194,7 +1211,7 @@ int run_shortcut(int argc, char **argv) {
 }
 
 
-int run_revert(int argc, char**argv){
+int run_revert(int argc, char **argv) {
     if (check_init() == 0) {
         perror("You have not initialized in this folder or its parents yet.");
         return 1;
@@ -1205,10 +1222,10 @@ int run_revert(int argc, char**argv){
 
     bool flag = false;
     int X = -1;
-    if ((argc == 3) || ((argc == 5) && strcmp(argv[2], "-m") == 0)){
+    if ((argc == 3) || ((argc == 5) && strcmp(argv[2], "-m") == 0)) {
         flag = true;
         ID = atoi(argv[argc - 1]);
-        if (strncmp(argv[argc - 1], "HEAD-", 5) == 0){
+        if (strncmp(argv[argc - 1], "HEAD-", 5) == 0) {
             char x[5];
             strcpy(x, argv[argc - 1] + 5);
             X = atoi(x);
@@ -1216,27 +1233,25 @@ int run_revert(int argc, char**argv){
             fscanf(counter, "%d", &ID);
             fclose(counter);
             ID -= X;
-            if (ID < 0){
+            if (ID < 0) {
                 printf("WTF Bro you don't have this commit!\n");
                 return 1;
             }
-        }
-        else if (ID <= 0){
+        } else if (ID <= 0) {
             printf("Invalid ID! Check your input.\n");
             return 1;
         }
-        if (argc == 5){
+        if (argc == 5) {
             strcpy(newmessage, argv[3]);
         }
-    }
-    else if(strcmp(argv[2], "-n") == 0){
-        if (argc == 4){
+    } else if (strcmp(argv[2], "-n") == 0) {
+        if (argc == 4) {
             ID = atoi(argv[3]);
-            if (ID == 0){
+            if (ID == 0) {
                 printf("Invalid ID! Check your input.\n");
                 return 1;
             }
-        } else{
+        } else {
             FILE *counter = fopen(".dambiz/branches/commitcounter.txt", "r");
             fscanf(counter, "%d", &ID);
             fclose(counter);
@@ -1248,21 +1263,21 @@ int run_revert(int argc, char**argv){
     char logs[20][MAX_ADDRESS_SIZE];
     char *log = strtok(content, "\n");
     int logcount = 0;
-    while (log != NULL){
+    while (log != NULL) {
         strcpy(logs[logcount++], log);
         log = strtok(NULL, "\n");
     }
     char commitpath[MAX_ADDRESS_SIZE];
     char currentID[5];
     sprintf(currentID, "%d", ID);
-    for (int i = 0; i< logcount; i++){
-        if (strstr(logs[i], currentID)){
+    for (int i = 0; i < logcount; i++) {
+        if (strstr(logs[i], currentID)) {
             strcpy(commitpath, logs[ID - 1]);
             break;
         }
     }
 
-    if(strlen(newmessage) == 0){
+    if (strlen(newmessage) == 0) {
         char messagepath[MAX_ADDRESS_SIZE];
         sprintf(messagepath, "%s/commitmessage.txt", commitpath);
         FILE *lastmessage = fopen(messagepath, "r");
@@ -1270,7 +1285,7 @@ int run_revert(int argc, char**argv){
         fclose(lastmessage);
     }
 
-    if (flag){
+    if (flag) {
         FILE *counter = fopen(".dambiz/branches/commitcounter.txt", "r");
         int commitcounter;
         fscanf(counter, "%d", &commitcounter);
@@ -1279,7 +1294,6 @@ int run_revert(int argc, char**argv){
         counter = fopen(".dambiz/branches/commitcounter.txt", "w");
         fprintf(counter, "%d", commitcounter);
         fclose(counter);
-
 
 
         FILE *currentbranch;
@@ -1302,6 +1316,7 @@ int run_revert(int argc, char**argv){
         if (mkdir(path, 0755) != 0) {
             perror("oops!\n");
         }
+
 
         char copy_command[MAX_FILE_SIZE];
         sprintf(copy_command, "cp -r %s/* %s/", commitpath, path);
@@ -1373,12 +1388,23 @@ int run_revert(int argc, char**argv){
             (strcmp(cf->d_name, "log.txt") != 0)) {
             char command[MAX_ADDRESS_SIZE];
             sprintf(command, "cp -r %s/%s .", commitpath, cf->d_name);
-            printf("%s\n", command);
             system(command);
         }
     }
+
+
+    FILE *currentcommit = fopen(Current_Commit, "w");
+    fprintf(currentcommit, "%s", commitpath);
+    fclose(currentcommit);
+
     printf("Revert ran successfully!\n");
 
 
+}
+
+
+
+
+int run_grep(int argc, char **argv){
 
 }
