@@ -77,5 +77,17 @@ int main(int argc, char **argv) {
         } else {
             printf("Invalid Command!\n");
         }
+    }else if (strcmp(argv[1], "grep") == 0) {
+        if (argc < 10) {
+            run_grep(argc, argv);
+        } else {
+            printf("Invalid Command!\n");
+        }
+    }else if (strcmp(argv[1], "tag") == 0) {
+        if (argc < 10) {
+            run_tag(argc, argv);
+        } else {
+            printf("Invalid Command!\n");
+        }
     }
 }

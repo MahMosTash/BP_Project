@@ -130,7 +130,8 @@ void create_essentials() {
         ((commit = fopen(".dambiz/branches/commitcounter.txt", "w")) == NULL) ||
         (branch = fopen(CURRENT_BRANCH, "w")) == NULL ||
         ((fopen(".dambiz/tracks/commitlog.txt", "w")) == NULL) ||
-        (fopen(".dambiz/tracks/currentcommit.txt", "w") == NULL)) {
+        (fopen(".dambiz/tracks/currentcommit.txt", "w") == NULL) ||
+        (fopen(".dambiz/tags/tags.txt", "w") == NULL)) {
         perror("Oops! Something bad happened!");
     }
     fprintf(commit, "0\n");
@@ -1217,6 +1218,19 @@ int run_revert(int argc, char **argv) {
         return 1;
     }
 
+
+    char headcommitpath[MAX_ADDRESS_SIZE];
+    FILE *currentcommit = fopen(Current_Commit, "r");
+    fscanf(currentcommit, "%[^\n]s", headcommitpath);
+    fclose(currentcommit);
+
+
+    if (check_addfolder(".", headcommitpath) == 1) {
+        printf("You can not revert because there are changed files that are not committed!\n");
+        return 1;
+    }
+
+
     int ID;
     char newmessage[MAX_ADDRESS_SIZE] = "";
 
@@ -1393,9 +1407,10 @@ int run_revert(int argc, char **argv) {
     }
 
 
-    FILE *currentcommit = fopen(Current_Commit, "w");
+    currentcommit = fopen(Current_Commit, "w");
     fprintf(currentcommit, "%s", commitpath);
     fclose(currentcommit);
+
 
     printf("Revert ran successfully!\n");
 
@@ -1403,8 +1418,187 @@ int run_revert(int argc, char **argv) {
 }
 
 
+int run_grep(int argc, char **argv) {
+    char currentcommit[MAX_ADDRESS_SIZE];
+    bool n = false;
+
+    if (argc != 6) {
+        if (strcmp(argv[6], "-c") == 0) {
+            if (argc >= 8) {
+                int ID = atoi(argv[7]);
+                FILE *commitlog = fopen(".dambiz/tracks/commitlog.txt", "r");
+                char content[MAX_FILE_SIZE];
+                fscanf(commitlog, "%[^\r]s", content);
+                char logs[20][MAX_ADDRESS_SIZE];
+                char *log = strtok(content, "\n");
+                int logcount = 0;
+                while (log != NULL) {
+                    strcpy(logs[logcount++], log);
+                    log = strtok(NULL, "\n");
+                }
+                strcpy(currentcommit, logs[ID - 1]);
+            } else {
+                printf("Invalid Inputs!\n");
+                return 1;
+            }
+        }
+    } else {
+        FILE *curcommit = fopen(Current_Commit, "r");
+        fscanf(curcommit, "%[^\n]s", currentcommit);
+        fclose(curcommit);
+    }
+    if (strcmp(argv[argc - 1], "-n") == 0) {
+        n = true;
+    }
+    char filepath[MAX_ADDRESS_SIZE];
+    sprintf(filepath, "%s/%s", currentcommit, argv[3]);
+    char word[MAX_NAME_SIZE];
+    strcpy(word, argv[5]);
+    FILE *content = fopen(filepath, "r");
+    char fcontent[MAX_FILE_SIZE];
+    fscanf(content, "%[^\r]s", fcontent);
+    char *line = strtok(fcontent, "\n");
+    int linecounter = 1;
+    while (line != NULL) {
+        long int location;
+        if (strstr(line, word)) {
+            location = strstr(line, word) - line;
+            if (n) {
+                printf("Line %d: ", linecounter);
+            }
+            for (unsigned long int i = 0; i < strlen(line); i++) {
+                if (i == location) {
+                    for (unsigned long int j = i; j < i + strlen(word); j++) {
+                        printf("\033[1;31m%c", line[j]);
+                    }
+                    i += (strlen(word) - 1);
+                    printf("\033[0m");
+                    if (strstr(line + i, word)) {
+                        location = strstr(line + i, word) - line;
+                    }
+                } else {
+                    printf("%c", line[i]);
+
+                }
+            }
+            printf("\n");
+        }
+        line = strtok(NULL, "\n");
+        linecounter++;
+    }
+    printf("\n\n\nGrep Completed!\n");
+}
+
+int run_tag(int argc, char **argv) {
+    if (argc > 3) {
+        char tagpath[MAX_ADDRESS_SIZE];
+        sprintf(tagpath, ".dambiz/tags/%s", argv[3]);
+
+        if (strcmp(argv[2], "-a") == 0) {
+            char tagname[MAX_NAME_SIZE];
+            strcpy(tagname, argv[3]);
+
+            if (strcmp(argv[argc - 1], "-f") != 0) {
+                DIR *tag = opendir(".dambiz/tags");
+                if (directory_search(tag, argv[3])) {
+                    printf("Tag already exist!\n");
+                    return 1;
+                }
+                FILE *tags = fopen(".dambiz/tags/tags.txt", "a");
+                fprintf(tags, "%s\n", tagname);
+            }
+
+            char tag_message[MAX_NAME_SIZE] = "";
+            int ID = 0;
+            if (argc > 4) {
+                int flag = 4;
+                if (strcmp(argv[4], "-m") == 0) {
+                    flag = 6;
+                    strcpy(tag_message, argv[5]);
+                }
+                if (argc > flag) {
+                    if (strcmp(argv[flag], "-c") == 0) {
+                        ID = atoi(argv[flag + 1]);
+                    }
+                }
+            }
 
 
-int run_grep(int argc, char **argv){
+
+            mkdir(tagpath, 0755);
+
+
+
+            strcat(tagpath, "/taglog.txt");
+            FILE *taglog = fopen(tagpath, "w");
+
+            if(ID == 0){
+                FILE *curID = fopen(Current_Commit, "r");
+                char content[MAX_FILE_SIZE];
+                fscanf(curID, "%[^\r]", content);
+                ID = atoi(strrchr(content, '/') + 1);
+            }
+
+            char author[MAX_NAME_SIZE];
+            FILE *user = fopen(".dambiz/user/localname.txt", "r");
+            fscanf(user, "%[^\r]s", author);
+            fclose(user);
+
+            time_t currenttime;
+            struct tm *ptr_time;
+            char mytime[50];
+            time(&currenttime);
+            ptr_time = localtime(&currenttime);
+            if (strftime(mytime, 50, "%A %Y.%m.%d - %H:%M:%S", ptr_time) == 0) {
+                perror("Couldn't prepare time formatted string\n");
+            }
+
+
+            fprintf(taglog, "Tag Name:     %s\nCommit ID:     %d\nUser:     %s\nTagging Date:     %s\n", tagname, ID, author, mytime);
+
+            if(strlen(tag_message) != 0){
+                fprintf(taglog, "Tag Message:     %s\n", tag_message);
+            }
+            fclose(taglog);
+
+
+            printf("Tag added successfully!\n");
+        } else if (strcmp(argv[2], "show") == 0) {
+            strcat(tagpath, "/taglog.txt");
+            FILE *taglog = fopen(tagpath, "r");
+            char logcontent[MAX_FILE_SIZE];
+            fscanf(taglog, "%[^\r]s", logcontent);
+            printf("\n%s\n", logcontent);
+        } else {
+            printf("Invalid inputs! try again.\n");
+            return 1;
+        }
+
+    } else {
+        FILE *alltags = fopen(".dambiz/tags/tags.txt", "r");
+
+        char content[MAX_ADDRESS_SIZE];
+        fscanf(alltags, "%[^\r]s", content);
+        char tags[50][MAX_NAME_SIZE];
+        char *tag = strtok(content, "\n");
+        int tagcounter = 0;
+        while (tag != NULL){
+            strcpy(tags[tagcounter++], tag);
+            tag = strtok(NULL, "\n");
+        }
+        for (int i = 0; i < tagcounter; i++) {
+            char min[] = "zzzzzzzzz";
+            int Max = 0;
+            for (int j = 0; j < tagcounter; j++) {
+                if (strcmp(min, tags[j]) > 0 && strcmp("", tags[j]) != 0){
+                    strcpy(min, tags[j]);
+                    Max = j;
+                }
+            }
+            printf("%s\n", min);
+            strcpy(tags[Max], "");
+        }
+
+    }
 
 }
