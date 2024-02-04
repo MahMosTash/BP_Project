@@ -1158,13 +1158,16 @@ int run_shortcut(int argc, char **argv) {
             printf("Invalid Command!\n");
             return 1;
         }
+
         DIR *shortcuts = opendir(".dambiz/shortcuts");
         char txtname[MAX_NAME_SIZE];
         sprintf(txtname, "%s.txt", argv[5]);
+
         if (directory_search(shortcuts, txtname) == 0){
             printf("Invalid Shortcut! Check your input.\n");
             return 1;
         }
+
         char shortcutpath[MAX_ADDRESS_SIZE];
         sprintf(shortcutpath, ".dambiz/shortcuts/%s.txt", argv[5]);
         FILE *replacedshort = fopen(shortcutpath, "w");
@@ -1277,6 +1280,8 @@ int run_revert(int argc, char**argv){
         fprintf(counter, "%d", commitcounter);
         fclose(counter);
 
+
+
         FILE *currentbranch;
         if ((currentbranch = fopen(CURRENT_BRANCH, "r")) == NULL) {
             printf("WTAF\n");
@@ -1286,10 +1291,13 @@ int run_revert(int argc, char**argv){
         fscanf(currentbranch, "%[^\n]s", current);
         fclose(currentbranch);
 
+        FILE *commitslog;
+        commitslog = fopen(".dambiz/tracks/commitlog.txt", "a");
+        fprintf(commitslog, ".dambiz/branches/%s/commits/%d\n", current, commitcounter);
+        fclose(commitslog);
 
         char path[MAX_ADDRESS_SIZE];
         sprintf(path, ".dambiz/branches/%s/commits/%d", current, commitcounter);
-
 
         if (mkdir(path, 0755) != 0) {
             perror("oops!\n");
