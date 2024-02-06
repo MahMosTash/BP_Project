@@ -89,5 +89,32 @@ int main(int argc, char **argv) {
         } else {
             printf("Invalid Command!\n");
         }
+    }else if (strcmp(argv[1], "diff") == 0) {
+        if (argc < 10) {
+            run_diff(argc, argv);
+        } else {
+            printf("Invalid Command!\n");
+        }
+    }else if (strcmp(argv[1], "pre-commit") == 0) {
+        if (argc < 10) {
+            run_precommit(argc, argv);
+        } else {
+            printf("Invalid Command!\n");
+        }
+    } else if (argc == 2){
+        DIR *alias = opendir(".dambiz/alias");
+        struct dirent* command;
+        while ((command = readdir(alias)) != NULL){
+            if(strcmp(command->d_name, argv[1]) == 0){
+                char aliaspath[MAX_ADDRESS_SIZE];
+                sprintf(aliaspath, ".dambiz/alias/%s", command->d_name);
+                FILE *aliasf = fopen(aliaspath, "r");
+                char newcommand[MAX_FILE_SIZE];
+                fscanf(aliasf,"%[^\n]s", newcommand);
+                system(newcommand);
+                return 1;
+            }
+        }
+        printf("Invalid Command!\n");
     }
 }

@@ -1,5 +1,6 @@
 #define GlobalName "/home/mahmostash/Desktop/BP_Project/user/globalname.txt"
 #define GlobalEmail "/home/mahmostash/Desktop/BP_Project/user/globalemail.txt"
+#define ALIAS "/home/mahmostash/Desktop/BP_Project/alias"
 #define Staging ".dambiz/staging"
 #define Addlog ".dambiz/tracks/addlog.txt"
 #define Branches ".dambiz/branches"
@@ -8,9 +9,46 @@
 #define MAX_FILE_SIZE 5000
 #define MAX_NAME_SIZE 100
 #define MAX_ADDRESS_SIZE 500
+#define RESET \033[1;0
+
+
+
+int check_init() {
+    struct dirent *insearch;
+    char temp_directory[MAX_NAME_SIZE];
+
+    do {
+        DIR *current_directory;
+        if ((current_directory = opendir(".")) == NULL) {
+            perror("Could not open a current or parent directory!");
+            return 1;
+        }
+        while ((insearch = readdir(current_directory)) != NULL) {
+            if ((strcmp(insearch->d_name, ".dambiz") == 0) && (insearch->d_type == DT_DIR)) {
+                return 2;
+            }
+        }
+        closedir(current_directory);
+        if (getcwd(temp_directory, sizeof(temp_directory)) == NULL) {
+            perror("Could not open current working directory!\n");
+            return 3;
+        }
+        if (strcmp(temp_directory, "/") != 0) {
+            if (chdir("..") != 0) {
+                printf("Could not change directory to the parent dir!\n");
+                return 4;
+            }
+        }
+    } while (strcmp(temp_directory, "/") != 0);
+    return 0;
+}
 
 
 int run_config(int argc, char **argv) {
+    if (check_init() == 0) {
+        perror("You have not initialized in this folder or its parents yet.");
+        return 1;
+    }
     bool global = false;
     int starting_argument = 2;
     if (strcmp(argv[2], "-global") == 0) {
@@ -22,7 +60,19 @@ int run_config(int argc, char **argv) {
         return 1;
     }
     if (strncmp(argv[starting_argument], "alias.", 6) == 0) {
-        printf("%d\n", global);
+        if (global){
+            char path[MAX_ADDRESS_SIZE];
+            sprintf(path, "%s/%s", ALIAS, argv[starting_argument] + 6);
+            FILE * aliasfile = fopen(path, "w");
+            fprintf(aliasfile, "%s\n", argv[starting_argument + 1]);
+        }
+        char path[MAX_ADDRESS_SIZE];
+        sprintf(path, ".dambiz/alias/%s", argv[starting_argument] + 6);
+        FILE * aliasfile = fopen(path, "w");
+        fprintf(aliasfile, "%s\n", argv[starting_argument + 1]);
+
+        printf("Alias Added Successfully!\n");
+
     } else if (argc == (starting_argument + 2)) {
         FILE *floc;
         if (strcmp(argv[starting_argument], "user.name") == 0) {
@@ -64,40 +114,10 @@ int run_config(int argc, char **argv) {
 }
 
 
-int check_init() {
-    struct dirent *insearch;
-    char temp_directory[MAX_NAME_SIZE];
-
-    do {
-        DIR *current_directory;
-        if ((current_directory = opendir(".")) == NULL) {
-            perror("Could not open a current or parent directory!");
-            return 1;
-        }
-        while ((insearch = readdir(current_directory)) != NULL) {
-            if ((strcmp(insearch->d_name, ".dambiz") == 0) && (insearch->d_type == DT_DIR)) {
-                return 2;
-            }
-        }
-        closedir(current_directory);
-        if (getcwd(temp_directory, sizeof(temp_directory)) == NULL) {
-            perror("Could not open current working directory!\n");
-            return 3;
-        }
-        if (strcmp(temp_directory, "/") != 0) {
-            if (chdir("..") != 0) {
-                printf("Could not change directory to the parent dir!\n");
-                return 4;
-            }
-        }
-    } while (strcmp(temp_directory, "/") != 0);
-    return 0;
-}
-
 
 void create_essentials() {
     if (mkdir(".dambiz/user", 0755) || mkdir(".dambiz/shortcuts", 0755) || mkdir(".dambiz/alias", 0755) ||
-        mkdir(".dambiz/branches", 0755) ||
+        mkdir(".dambiz/branches", 0755) || mkdir(".dambiz/hooks", 0755) ||
         mkdir(".dambiz/staging", 0755) || mkdir(".dambiz/tracks", 0755) || mkdir(".dambiz/branches/master", 0755) ||
         mkdir(".dambiz/branches/master/commits", 0755) || mkdir(".dambiz/tags", 0755)) {
         perror("Oops! Something bad happened!");
@@ -1419,6 +1439,11 @@ int run_revert(int argc, char **argv) {
 
 
 int run_grep(int argc, char **argv) {
+    if (check_init() == 0) {
+        perror("You have not initialized in this folder or its parents yet.");
+        return 1;
+    }
+
     char currentcommit[MAX_ADDRESS_SIZE];
     bool n = false;
 
@@ -1490,6 +1515,12 @@ int run_grep(int argc, char **argv) {
 }
 
 int run_tag(int argc, char **argv) {
+
+    if (check_init() == 0) {
+        perror("You have not initialized in this folder or its parents yet.");
+        return 1;
+    }
+
     if (argc > 3) {
         char tagpath[MAX_ADDRESS_SIZE];
         sprintf(tagpath, ".dambiz/tags/%s", argv[3]);
@@ -1524,15 +1555,13 @@ int run_tag(int argc, char **argv) {
             }
 
 
-
             mkdir(tagpath, 0755);
-
 
 
             strcat(tagpath, "/taglog.txt");
             FILE *taglog = fopen(tagpath, "w");
 
-            if(ID == 0){
+            if (ID == 0) {
                 FILE *curID = fopen(Current_Commit, "r");
                 char content[MAX_FILE_SIZE];
                 fscanf(curID, "%[^\r]", content);
@@ -1554,9 +1583,10 @@ int run_tag(int argc, char **argv) {
             }
 
 
-            fprintf(taglog, "Tag Name:     %s\nCommit ID:     %d\nUser:     %s\nTagging Date:     %s\n", tagname, ID, author, mytime);
+            fprintf(taglog, "Tag Name:     %s\nCommit ID:     %d\nUser:     %s\nTagging Date:     %s\n", tagname, ID,
+                    author, mytime);
 
-            if(strlen(tag_message) != 0){
+            if (strlen(tag_message) != 0) {
                 fprintf(taglog, "Tag Message:     %s\n", tag_message);
             }
             fclose(taglog);
@@ -1582,15 +1612,15 @@ int run_tag(int argc, char **argv) {
         char tags[50][MAX_NAME_SIZE];
         char *tag = strtok(content, "\n");
         int tagcounter = 0;
-        while (tag != NULL){
+        while (tag != NULL) {
             strcpy(tags[tagcounter++], tag);
             tag = strtok(NULL, "\n");
         }
         for (int i = 0; i < tagcounter; i++) {
-            char min[] = "zzzzzzzzz";
+            char min[] = "zzzzzzzzzzzzzzzzzzzzzzzzzzzz";
             int Max = 0;
             for (int j = 0; j < tagcounter; j++) {
-                if (strcmp(min, tags[j]) > 0 && strcmp("", tags[j]) != 0){
+                if (strcmp(min, tags[j]) > 0 && strcmp("", tags[j]) != 0) {
                     strcpy(min, tags[j]);
                     Max = j;
                 }
@@ -1598,7 +1628,446 @@ int run_tag(int argc, char **argv) {
             printf("%s\n", min);
             strcpy(tags[Max], "");
         }
+    }
+}
 
+
+int run_diff(int argc, char **argv) {
+    if (check_init() == 0) {
+        perror("You have not initialized in this folder or its parents yet.");
+        return 1;
     }
 
+    if (strcmp(argv[2], "-f") == 0) {
+        char pathfile1[MAX_ADDRESS_SIZE];
+        char pathfile2[MAX_ADDRESS_SIZE];
+        strcpy(pathfile1, argv[3]);
+        strcpy(pathfile2, argv[4]);
+        int start1 = 1, start2 = 1, end1 = 0, end2 = 0;
+
+        if (argc > 5) {
+            int flag = 5;
+            if (strcmp(argv[flag], "-line1") == 0) {
+                sscanf(argv[flag + 1], "%d-%d", &start1, &end1);
+                flag += 2;
+            }
+            if (argc > flag) {
+                if (strcmp(argv[flag], "-line2") == 0) {
+                    sscanf(argv[flag + 1], "%d-%d", &start2, &end2);
+                }
+            }
+        }
+
+        FILE *file1 = fopen(pathfile1, "r");
+        FILE *file2 = fopen(pathfile2, "r");
+
+        char filecontent1[1000][1000];
+        char filecontent2[1000][1000];
+
+        int line1counter = 0;
+        int line2counter = 0;
+
+        while (!feof(file1)) {
+            fgets(filecontent1[line1counter++], 1000, file1);
+        }
+
+        while (!feof(file2)) {
+            fgets(filecontent2[line2counter++], 1000, file2);
+        }
+        if (end1 == 0 || end1 > line1counter) {
+            end1 = line1counter;
+        }
+        if (end2 == 0 || end2 > line2counter) {
+            end2 = line2counter;
+        }
+        for (int i = start1 - 1, j = start2 - 1; i < end1 && j < end2; i++, j++) {
+            if (i >= end1) {
+                strcpy(filecontent1[i], "");
+            }
+            if (j >= end2) {
+                strcpy(filecontent2[j], "");
+            }
+            if (strcmp(filecontent1[i], filecontent2[j]) == 0) {
+                continue;
+            }
+            printf("\n\n************************************************************************************************************************************************************************************************************\n%s-%d\n\033[1;31m%s\033[0m\n%s-%d\n\n\033[1;36m%s\033[0m\n************************************************************************************************************************************************************************************************************\n\n",
+                   pathfile1, i + 1, filecontent1[i], pathfile2, j + 1, filecontent2[j]);
+        }
+    } else if (strcmp(argv[2], "-c") == 0) {
+        int commitID1, commitID2;
+        commitID1 = atoi(argv[3]);
+        commitID2 = atoi(argv[4]);
+
+        FILE *commitlog = fopen(".dambiz/tracks/commitlog.txt", "r");
+        char content[MAX_FILE_SIZE];
+        fscanf(commitlog, "%[^\r]s", content);
+        char logs[20][MAX_ADDRESS_SIZE];
+        char *log = strtok(content, "\n");
+        int logcount = 0;
+        while (log != NULL) {
+            strcpy(logs[logcount++], log);
+            log = strtok(NULL, "\n");
+        }
+        char commitpath1[MAX_ADDRESS_SIZE];
+        char commitpath2[MAX_ADDRESS_SIZE];
+        strcpy(commitpath1, logs[commitID1 - 1]);
+        strcpy(commitpath2, logs[commitID2 - 1]);
+
+        DIR *commit1 = opendir(commitpath1);
+
+        struct dirent *dir1;
+        while ((dir1 = readdir(commit1)) != NULL) {
+            DIR *commit2 = opendir(commitpath2);
+            if ((strncmp(dir1->d_name, ".", 1) != 0) &&
+                (strcmp(dir1->d_name, "author.txt") != 0) &&
+                (strcmp(dir1->d_name, "commitmessage.txt") != 0) &&
+                (strcmp(dir1->d_name, "committime.txt") != 0) &&
+                (strcmp(dir1->d_name, "log.txt") != 0) && dir1->d_type != DT_DIR) {
+                if (directory_search(commit2, dir1->d_name)) {
+                    char command[MAX_ADDRESS_SIZE];
+                    char commitfile1[MAX_ADDRESS_SIZE];
+                    char commitfile2[MAX_ADDRESS_SIZE];
+
+                    sprintf(commitfile1, "%s/%s", commitpath1, dir1->d_name);
+                    sprintf(commitfile2, "%s/%s", commitpath2, dir1->d_name);
+
+                    sprintf(command, "dambiz diff -f %s %s", commitfile1, commitfile2);
+                    system(command);
+                } else {
+                    printf("File %s only exists in commit ID: %d\n", dir1->d_name, commitID1);
+                }
+            }
+        }
+        DIR *commit2 = opendir(commitpath2);
+        struct dirent *dir2;
+        while ((dir2 = readdir(commit2)) != NULL) {
+            commit1 = opendir(commitpath1);
+            if ((strncmp(dir2->d_name, ".", 1) != 0) &&
+                (strcmp(dir2->d_name, "author.txt") != 0) &&
+                (strcmp(dir2->d_name, "commitmessage.txt") != 0) &&
+                (strcmp(dir2->d_name, "committime.txt") != 0) &&
+                (strcmp(dir2->d_name, "log.txt") != 0) && dir2->d_type != DT_DIR) {
+                if (directory_search(commit1, dir2->d_name) == 0) {
+                    printf("File %s only exists in commit ID: %d\n", dir2->d_name, commitID2);
+                }
+            }
+        }
+    } else {
+        printf("Invalid Command!\n");
+    }
+}
+
+
+void readfile(FILE *file, char *content) {
+    while (!feof(file)) {
+        char line[1000];
+        fgets(line, 1000, file);
+        strcat(content, line);
+    }
+}
+
+
+int todohook(char path[]) {
+    if (strstr(path, ".txt") || strstr(path, ".c") || strstr(path, ".cpp")) {
+        FILE *file = fopen(path, "r");
+        char content[MAX_FILE_SIZE];
+        readfile(file, content);
+        if (strstr(path, ".txt")) {
+            if (strstr(content, "TODO")) {
+                int place = strstr(content, "TODO") - content;
+                if (place + 4 < strlen(content)) {
+                    if (content[place + 4] == ' ') {
+                        return 0;
+                    }
+                    return 1;
+                }
+                return 0;
+            }
+            return 0;
+        } else {
+            char *line = strtok(content, "\n");
+            while (line != NULL) {
+                if (strstr(line, "//") && strstr(line, "TODO")) {
+                    if (strstr(line, "//") < strstr(line, "TODO")) {
+                        return 0;
+                    }
+                }
+                line = strtok(NULL, "\n");
+            }
+            return 1;
+        }
+    }
+    return 2;
+}
+
+
+int blankspacehook(char path[]) {
+    if (strstr(path, ".txt") || strstr(path, ".c") || strstr(path, ".cpp")) {
+        FILE *file = fopen(path, "r");
+        char lines[200][1000];
+        int linecounter = 0;
+        while (!feof(file)) {
+            fgets(lines[linecounter++], 1000, file);
+        }
+        if (strtok(lines[linecounter - 2], " \n") == NULL) {
+            return 0;
+        }
+        return 1;
+    }
+    return 2;
+}
+
+int formatcheckhook(char path[]) {
+    if (strstr(path + 1, ".") == NULL) {
+        return 2;
+    } else if (strstr(path, ".txt") || strstr(path, ".c") || strstr(path, ".cpp") || strstr(path, ".mp4") ||
+               strstr(path, ".wav") || strstr(path, ".mp3") || strstr(path, ".jpg")) {
+        return 1;
+    }
+    return 0;
+}
+
+
+int balancebraceshook(char path[]) {
+    if (strstr(path, ".txt") || strstr(path, ".c") || strstr(path, ".cpp")) {
+        FILE *file = fopen(path, "r");
+        char content[MAX_FILE_SIZE];
+        readfile(file, content);
+        int bo = 0, po = 0, ko = 0, be = 0, pe = 0, ke = 0;
+        for (int i = 0; i < strlen(content); i++) {
+            if (content[i] == '(') {
+                po++;
+            } else if (content[i] == ')') {
+                pe++;
+            } else if (content[i] == '[') {
+                bo++;
+            } else if (content[i] == ']') {
+                be++;
+            } else if (content[i] == '{') {
+                ko++;
+            } else if (content[i] == '}') {
+                ke++;
+            }
+        }
+        if (be == bo && pe == po && ke == ko) {
+            return 1;
+        }
+        return 0;
+    }
+    return 2;
+}
+
+int staticerror(char path[]) {
+    struct stat x;
+    if (strstr(path, ".c") || strstr(path, ".cpp")) {
+        char command[MAX_ADDRESS_SIZE];
+        sprintf(command, "gcc %s -o test 2>/dev/null", path);
+        if (system(command) == 0) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+    return 2;
+}
+
+int sizecheckhook(char path[]) {
+    FILE *file = fopen(path, "rb");
+    fseek(file, 0, SEEK_END);
+    unsigned long long int size = ftell(file);
+    if (size > 5000000) {
+        return 0;
+    }
+    return 1;
+}
+
+
+int run_precommit(int argc, char **argv) {
+    if (check_init() == 0) {
+        perror("You have not initialized in this folder or its parents yet.");
+        return 1;
+    }
+    if (argc == 2 || (argc > 2 && strcmp(argv[2], "-f") == 0)) {
+
+        int failed = 0;
+
+        DIR *hookdir = opendir(".dambiz/hooks");
+        char hooks[8][MAX_NAME_SIZE];
+        int hookcount = 0;
+        struct dirent *hook;
+        while ((hook = readdir(hookdir)) != NULL) {
+            if (strncmp(hook->d_name, ".", 1) == 0) {
+                continue;
+            }
+            strcpy(hooks[hookcount++], hook->d_name);
+        }
+
+
+        if (argc == 2) {
+
+
+            DIR *stage = opendir(Staging);
+            char stagedfiles[20][MAX_ADDRESS_SIZE];
+            char names[20][MAX_NAME_SIZE];
+            int stagedcount = 0;
+            struct dirent *staged;
+            while ((staged = readdir(stage)) != NULL) {
+                struct stat x;
+                if (strncmp(staged->d_name, ".", 1) == 0) {
+                    continue;
+                }
+                sprintf(stagedfiles[stagedcount], Staging);
+                strcpy(names[stagedcount], staged->d_name);
+                strcat(stagedfiles[stagedcount], "/");
+                strcat(stagedfiles[stagedcount++], staged->d_name);
+            }
+
+
+
+
+            for (int i = 0; i < stagedcount; i++) {
+                printf("**************************************************************************************\n%s:\n\n",
+                       names[i]);
+                for (int j = 0; j < hookcount; j++) {
+                    int flag = 2;
+                    if (strstr(hooks[j], "todo-check")) {
+                        printf("todo-check ....................................................................");
+                        flag = todohook(stagedfiles[i]);
+                    } else if (strstr(hooks[j], "eof-blank-space")) {
+                        printf("eof-blank-space................................................................");
+                        flag = blankspacehook(stagedfiles[i]);
+                    } else if (strstr(hooks[j], "format-check")) {
+                        printf("format-check...................................................................");
+                        flag = formatcheckhook(stagedfiles[i]);
+                    } else if (strstr(hooks[j], "balance-braces")) {
+                        printf("balance-braces.................................................................");
+                        flag = balancebraceshook(stagedfiles[i]);
+                    } else if (strstr(hooks[j], "static-error-check")) {
+                        printf("static-error-check.............................................................");
+                        flag = staticerror(stagedfiles[i]);
+                    } else if (strstr(hooks[j], "file-size-check")) {
+                        printf("file-size-check................................................................");
+                        flag = sizecheckhook(stagedfiles[i]);
+                    } else if (strstr(hooks[j], "character-limit")) {
+                        printf("character-limit................................................................");
+                        if (strstr(stagedfiles[i], ".txt") || strstr(stagedfiles[i], ".c") || strstr(stagedfiles[i], ".cpp")) {
+                            flag = sizecheckhook(stagedfiles[i]);
+                        } else{
+                            flag = 2;
+                        }
+                    }else {
+                        printf("Invalid hook!\n");
+                        continue;
+                    }
+                    if (flag == 0) {
+                        printf("\033[0;31mFAILED\033[0;0m\n\n");
+                    } else if (flag == 1) {
+                        failed++;
+                        printf("\033[0;32mPASSED\033[0;0m\n\n");
+                    } else {
+                        printf("\033[0;36mSKIPPED\033[0;0m\n\n");
+                    }
+                }
+            }
+            if (failed){
+                printf("DO NOT COMMIT UNLESS YOU ARE SURE ABOUT IT!\n");
+            }
+        } else{
+            for (int i = 3; i < argc; i++) {
+                char newpath[MAX_ADDRESS_SIZE];
+                printf("**************************************************************************************\n%s:\n\n",
+                       argv[i]);
+                sprintf(newpath, ".dambiz/staging/%s", argv[i]);
+                for (int j = 0; j < hookcount; j++) {
+                    int flag = 2;
+                    if (strstr(hooks[j], "todo-check")) {
+                        printf("todo-check ....................................................................");
+                        flag = todohook(newpath);
+                    } else if (strstr(hooks[j], "eof-blank-space")) {
+                        printf("eof-blank-space................................................................");
+                        flag = blankspacehook(newpath);
+                    } else if (strstr(hooks[j], "format-check")) {
+                        printf("format-check...................................................................");
+                        flag = formatcheckhook(newpath);
+                    } else if (strstr(hooks[j], "balance-braces")) {
+                        printf("balance-braces.................................................................");
+                        flag = balancebraceshook(newpath);
+                    } else if (strstr(hooks[j], "static-error-check")) {
+                        printf("static-error-check.............................................................");
+                        flag = staticerror(newpath);
+                    } else if (strstr(hooks[j], "file-size-check")) {
+                        printf("file-size-check................................................................");
+                        flag = sizecheckhook(newpath);
+                    } else if (strstr(hooks[j], "character-limit")) {
+                        printf("character-limit................................................................");
+                        if (strstr(newpath, ".txt") || strstr(newpath, ".c") || strstr(newpath, ".cpp")) {
+                            flag = sizecheckhook(newpath);
+                        } else{
+                            flag = 2;
+                        }
+                    }else {
+                        printf("Invalid hook!\n");
+                        continue;
+                    }
+                    if (flag == 0) {
+                        printf("\033[0;31mFAILED\033[0;0m\n\n");
+                    } else if (flag == 1) {
+                        failed++;
+                        printf("\033[0;32mPASSED\033[0;0m\n\n");
+                    } else {
+                        printf("\033[0;36mSKIPPED\033[0;0m\n\n");
+                    }
+                }
+            }
+            if (failed){
+                printf("DO NOT COMMIT UNLESS YOU ARE SURE ABOUT IT!\n");
+            }
+        }
+    }
+    if (argc == 4) {
+        if ((strcmp(argv[2], "hooks") == 0) && (strcmp(argv[3], "list") == 0)) {
+            printf("\n\n************************************************************************************************************************************************************************************************************\n"
+                   "                                                                                             HOOKS LIST\n\n"
+                   "\033[1;32mtodo-check\033[1;0m for .txt, .c and .cpp formats\n\n"
+                   "\033[1;32meof-blank-space\033[1;0m for .txt, .c and .cpp formats\n\n"
+                   "\033[1;32mformat-check\033[1;0m for valid formats\n\n"
+                   "\033[1;32mbalance-braces\033[1;0m for .txt, .c and .cpp formats\n\n"
+                   "\033[1;32mindentation-check\033[1;0m for .cpp and .c formats\n\n"
+                   "\033[1;32mstatic-error-check\033[1;0m for .cpp and c formats\n\n"
+                   "\033[1;32mfile-size-check\033[1;0m for all formats\n\n"
+                   "\033[1;32mcharacter-limit\033[1;0m for .txt, .c and .cpp formats\n\n"
+                   "\033[1;32mtime-limit\033[1;0m for .mp4, .mp3 and .wav formats\n\n"
+                   "************************************************************************************************************************************************************************************************************\n\n");
+        } else if ((strcmp(argv[2], "applied") == 0) && (strcmp(argv[3], "hooks") == 0)) {
+            printf("\n\n************************************************************************************************************************************************************************************************************\n"
+                   "                                                                                            APPLIED HOOKS\n\n");
+            DIR *hooks = opendir(".dambiz/hooks");
+            struct dirent *hook;
+            while ((hook = readdir(hooks)) != NULL) {
+                if (hook->d_type != DT_DIR) {
+                    printf("\033[1;32m%s\033[1;0m\n\n", hook->d_name);
+                }
+            }
+            printf("************************************************************************************************************************************************************************************************************\n\n");
+        }
+    } else if (argc == 5) {
+        if ((strcmp(argv[2], "add") == 0) && (strcmp(argv[3], "hook") == 0)) {
+            char path[MAX_ADDRESS_SIZE];
+            sprintf(path, ".dambiz/hooks/%s", argv[4]);
+            FILE *hook = fopen(path, "w");
+            fclose(hook);
+            printf("Hook added successfully!\n");
+        } else if ((strcmp(argv[2], "remove") == 0) && (strcmp(argv[3], "hook") == 0)) {
+            char path[MAX_ADDRESS_SIZE];
+            sprintf(path, ".dambiz/hooks/%s", argv[4]);
+            char command[MAX_ADDRESS_SIZE];
+            sprintf(command, "rm -r %s", path);
+            system(command);
+            printf("Hook removed successfully!\n");
+        } else {
+            printf("Invalid Command!\n");
+        }
+    } else {
+
+    }
 }

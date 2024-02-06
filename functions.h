@@ -13,13 +13,15 @@
 #include "functions.c"
 
 
+int check_init();
+
+
 int run_config(int argc, char **argv);
 
 
 int run_init(int argc, char **argv);
 
 
-int check_init();
 
 
 void create_essentials();
@@ -81,9 +83,29 @@ int run_revert(int argc, char**argv);
 
 int run_grep(int argc, char **argv);
 
+
 int run_tag(int argc, char **argv);
 
+int run_diff(int argc, char **argv);
 
+
+void readfile(FILE* file, char *content);
+
+
+int todohook(char path[]);
+
+int blankspacehook(char path[]);
+
+int formatcheckhook(char path[]);
+
+int balancebraceshook(char  path[]);
+
+int staticerror(char path[]);
+
+int sizecheckhook(char path[]);
+
+
+int run_precommit(int argc, char **argv);
 #ifndef BP_PROJECT_FUNCTIONS_H
 #define BP_PROJECT_FUNCTIONS_H
 
